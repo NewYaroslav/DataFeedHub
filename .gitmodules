@@ -1,0 +1,30 @@
+[submodule "libs/sqlite-containers"]
+	path = libs/sqlite-containers
+	url = https://github.com/NewYaroslav/sqlite-containers.git
+[submodule "libs/time-shield-cpp"]
+	path = libs/time-shield-cpp
+	url = https://github.com/NewYaroslav/time-shield-cpp.git
+[submodule "libs/simdcomp"]
+	path = libs/simdcomp
+	url = https://github.com/fast-pack/simdcomp.git
+[submodule "libs/libvbyte"]
+	path = libs/libvbyte
+	url = https://github.com/cruppstahl/libvbyte.git
+[submodule "libs/fast_float"]
+	path = libs/fast_float
+	url = https://github.com/fastfloat/fast_float.git
+[submodule "libs/fast_double_parser"]
+	path = libs/fast_double_parser
+	url = https://github.com/lemire/fast_double_parser.git
+[submodule "libs/gzip-hpp"]
+	path = libs/gzip-hpp
+	url = https://github.com/NewYaroslav/gzip-hpp.git
+[submodule "libs/zlib"]
+	path = libs/zlib
+	url = https://github.com/madler/zlib.git
+[submodule "libs/zstd"]
+	path = libs/zstd
+	url = https://github.com/facebook/zstd.git
+[submodule "libs/minizip-ng"]
+	path = libs/minizip-ng
+	url = https://github.com/zlib-ng/minizip-ng.git
