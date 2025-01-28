@@ -35,20 +35,20 @@ namespace dfh::compression {
 
         /// \brief Sets the configuration for encoding and decoding.
         /// \param config The configuration to set.
-        void set_config(const TickEncodingConfig& config) {
+        void set_codec_config(const TickCodecConfig& config) {
             m_config = config;
         }
 
         /// \brief Gets the current configuration.
         /// \return The current encoding/decoding configuration.
-        TickEncodingConfig get_config() const {
+        const TickCodecConfig& codec_config() const {
             return m_config;
         }
 
         /// \brief Checks if the signature of the input data matches the expected signature.
         /// \param input A vector containing the binary data.
         /// \return True if the signature matches, otherwise false.
-        bool is_valid_signature(const std::vector<uint8_t>& input) const {
+        static bool is_valid_signature(const std::vector<uint8_t>& input) {
             if (input.empty()) return false; // No data to check.
             constexpr uint8_t signature = 0x01;
             return input[0] == signature;
@@ -59,13 +59,13 @@ namespace dfh::compression {
         /// \param output A vector where the compressed data will be stored.
         /// \throw std::invalid_argument if the configuration is invalid (e.g., precision exceeds allowed digits).
         void compress(
-				const std::vector<MarketTick>& ticks,
-				std::vector<uint8_t>& output) {
+                const std::vector<MarketTick>& ticks,
+                std::vector<uint8_t>& output) {
             if (ticks.empty()) return;
-            if (!m_config.enable_trade_based_encoding) {
+            if (!m_config.enable_trade_based) {
                 throw std::invalid_argument(
                     "Trade-based encoding is disabled in the configuration. "
-                    "Ensure that `enable_trade_based_encoding` is set to true in the `TickEncodingConfig` before calling compress()."
+                    "Ensure that `enable_trade_based` is set to true in the `TickCodecConfig` before calling compress()."
                 );
             }
 
@@ -77,7 +77,7 @@ namespace dfh::compression {
 
             m_context.reset();
 
-			auto& buffer = m_context.processing_buffer;
+            auto& buffer = m_context.processing_buffer;
 
             uint8_t header = 0x00;
             // Record the precision levels
@@ -86,7 +86,7 @@ namespace dfh::compression {
             // Bit 6: Flag indicating the use of real volume (double)
             header |= (m_config.price_digits & 0x1F);
             header |= (m_config.enable_tick_flags << 5) & 0x20;
-            header |= (m_config.enable_trade_based_encoding << 6) & 0x40;
+            header |= (m_config.enable_trade_based << 6) & 0x40;
             buffer.push_back(header);
 
             // Bits 0-4: Number of decimal places for the volume
@@ -95,7 +95,7 @@ namespace dfh::compression {
             header |= (ticks[0].has_flag(TickUpdateFlags::LAST_UPDATED) << 5) & 0x20;
             buffer.push_back(header);
 
-			constexpr uint64_t interval_ms = 3600000ULL;
+            constexpr uint64_t interval_ms = 3600000ULL;
             const uint64_t base_unix_hour = (ticks[0].time_ms / interval_ms);
             dfh::utils::append_vbyte<uint32_t>(buffer, base_unix_hour);
 
@@ -128,12 +128,12 @@ namespace dfh::compression {
             }
 
             constexpr uint8_t signature = 0x01;
-			compress_zstd_data(
-				buffer.data(), buffer.size(),
-				zstd_dict_tick_compressor_v1_102400,
-				sizeof(zstd_dict_tick_compressor_v1_102400),
-				signature,
-				output);
+            compress_zstd_data(
+                buffer.data(), buffer.size(),
+                zstd_dict_tick_compressor_v1_102400,
+                sizeof(zstd_dict_tick_compressor_v1_102400),
+                signature,
+                output);
         }
 
         /// \brief Compresses market tick data with a specified configuration.
@@ -142,7 +142,7 @@ namespace dfh::compression {
         /// \param output A vector where the compressed data will be stored.
         void compress(
                 const std::vector<MarketTick>& ticks,
-                const TickEncodingConfig& config,
+                const TickCodecConfig& config,
                 std::vector<uint8_t>& output) {
             m_config = config;
             compress(ticks, output);
@@ -153,8 +153,8 @@ namespace dfh::compression {
         /// \param ticks A vector where the decompressed MarketTick data will be stored.
         /// \throw std::runtime_error if decompression fails.
         void decompress(
-				const std::vector<uint8_t>& input,
-				std::vector<MarketTick>& ticks) {
+                const std::vector<uint8_t>& input,
+                std::vector<MarketTick>& ticks) {
             if (input.empty()) return;
             constexpr uint8_t signature = 0x01;
             if (input[0] != signature) {
@@ -167,23 +167,23 @@ namespace dfh::compression {
             m_context.reset();
             auto& buffer = m_context.processing_buffer;
 
-			decompress_zstd_data(
-				input.data() + 1, input.size() - 1,
-				zstd_dict_tick_compressor_v1_102400,
-				sizeof(zstd_dict_tick_compressor_v1_102400),
-				buffer);
+            decompress_zstd_data(
+                input.data() + 1, input.size() - 1,
+                zstd_dict_tick_compressor_v1_102400,
+                sizeof(zstd_dict_tick_compressor_v1_102400),
+                buffer);
 
-			size_t offset = 0;
+            size_t offset = 0;
             uint8_t header = buffer[offset++];
             m_config.price_digits = header & 0x1F;
-            m_config.enable_tick_flags           = (header & 0x20) != 0;
-            m_config.enable_trade_based_encoding = (header & 0x40) != 0;
+            m_config.enable_tick_flags  = (header & 0x20) != 0;
+            m_config.enable_trade_based = (header & 0x40) != 0;
 
             header = buffer[offset++];
             m_config.volume_digits  = header & 0x1F;
             const bool last_updated = (header & 0x20) != 0;
 
-			constexpr uint64_t interval_ms = 3600000ULL;
+            constexpr uint64_t interval_ms = 3600000ULL;
             const uint64_t base_unix_hour = dfh::utils::extract_vbyte<uint32_t>(buffer.data(), offset);
             const uint64_t base_unix_time = base_unix_hour * interval_ms;
             const uint64_t initial_price = dfh::utils::extract_vbyte<uint64_t>(buffer.data(), offset);
@@ -232,7 +232,7 @@ namespace dfh::compression {
         void decompress(
                 const std::vector<uint8_t>& input,
                 std::vector<MarketTick>& ticks,
-                TickEncodingConfig& config) {
+                TickCodecConfig& config) {
             decompress(input, ticks);
             config = m_config;
         }
@@ -241,7 +241,7 @@ namespace dfh::compression {
         TickCompressionContextV1  m_context; ///< Compression context containing intermediate buffers.
         TickEncoderV1             m_encoder; ///< Encoder for market tick data.
         TickDecoderV1             m_decoder; ///< Decoder for market tick data.
-        TickEncodingConfig        m_config;  ///< Configuration for encoding/decoding.
+        TickCodecConfig           m_config;  ///< Configuration for encoding/decoding.
     }; // TickCompressorV1
 
 }; // namespace dfh::compression

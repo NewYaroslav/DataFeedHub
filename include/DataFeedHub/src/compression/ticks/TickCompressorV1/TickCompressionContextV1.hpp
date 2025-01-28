@@ -23,7 +23,7 @@ namespace dfh::compression {
         std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> code_to_value_u32; ///< Maps encoded 32-bit values to their original values.
         std::vector<uint64_t, dfh::utils::aligned_allocator<uint64_t, 16>> code_to_value_u64; ///< Maps encoded 64-bit values to their original values.
         std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> index_map_u32;     ///< Stores index mappings for 32-bit frequency-encoded values.
-		std::vector<uint8_t> processing_buffer; ///< General-purpose buffer for processing intermediate data.
+        std::vector<uint8_t> processing_buffer; ///< General-purpose buffer for processing intermediate data.
 
         TickCompressionContextV1() = default;
 

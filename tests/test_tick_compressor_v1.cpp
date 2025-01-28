@@ -14,7 +14,7 @@
 #include <fast_double_parser.h>
 #include <DataFeedHub/src/structures/ticks/flags.hpp>
 #include <DataFeedHub/src/structures/ticks/MarketTick.hpp>
-#include <DataFeedHub/src/structures/ticks/TickEncodingConfig.hpp>
+#include <DataFeedHub/src/structures/ticks/TickCodecConfig.hpp>
 #include <DataFeedHub/src/structures/ticks/TickSequence.hpp>
 #include <DataFeedHub/src/utils/math_utils.hpp>
 #include <DataFeedHub/src/utils/fixed_point.hpp>
@@ -220,7 +220,7 @@ namespace dfh::compression {
             uint64_t& compression_time,
             uint64_t& decompression_time,
             const std::vector<dfh::MarketTick>& ticks,
-            const dfh::TickEncodingConfig& config) {
+            const dfh::TickCodecConfig& config) {
         if (ticks.empty()) return;
         std::cout << "ticks:  " << ticks.size() << std::endl;
 
@@ -276,12 +276,11 @@ int main() {
                 return;
             }
 
-            dfh::TickEncodingConfig compressor_config;
-            compressor_config.enable_tick_flags           = true;
-            compressor_config.enable_trade_based_encoding = true;
+            dfh::TickCodecConfig compressor_config;
+            compressor_config.enable_tick_flags  = true;
+            compressor_config.enable_trade_based = true;
             compressor_config.price_digits  = sequence.price_digits;
             compressor_config.volume_digits = sequence.volume_digits;
-            compressor_config.fixed_spread = 1;
 
             std::vector<dfh::MarketTick> ticks;
             int last_hour = time_shield::hour_of_day(time_shield::ms_to_sec(sequence.ticks[0].time_ms));

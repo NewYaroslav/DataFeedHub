@@ -14,7 +14,7 @@
 #include <fast_double_parser.h>
 #include <DataFeedHub/src/structures/ticks/flags.hpp>
 #include <DataFeedHub/src/structures/ticks/MarketTick.hpp>
-#include <DataFeedHub/src/structures/ticks/TickEncodingConfig.hpp>
+#include <DataFeedHub/src/structures/ticks/TickCodecConfig.hpp>
 #include <DataFeedHub/src/structures/ticks/TickSequence.hpp>
 #include <DataFeedHub/src/utils/math_utils.hpp>
 #include <DataFeedHub/src/utils/fixed_point.hpp>
@@ -183,12 +183,17 @@ namespace dfh::compression {
             : m_buffer(), m_encoder(m_buffer), m_decoder(m_buffer), m_interval_ms(interval) {
         }
 
-        void set_config(const TickEncodingConfig &config) {
+        void set_config(const TickCodecConfig &config) {
             m_config = config;
         }
 
         void compress(const std::vector<MarketTick>& ticks, std::vector<uint8_t>& output) {
-            if (!m_config.enable_trade_based_encoding) throw std::invalid_argument("?");
+            if (!m_config.enable_trade_based) {
+                throw std::invalid_argument(
+                    "Trade-based encoding is disabled in the configuration. "
+                    "Ensure that `enable_trade_based` is set to true in the `TickCodecConfig` before calling compress()."
+                );
+            }
             const size_t max_digits = 18;
             if (m_config.price_digits > max_digits || m_config.volume_digits > max_digits) {
                 throw std::invalid_argument("Price or volume digits exceed maximum allowed digits.");
@@ -201,7 +206,7 @@ namespace dfh::compression {
             // Bit 6: Flag indicating the use of real volume (double)
             header |= (m_config.price_digits & 0x1F);
             header |= (m_config.enable_tick_flags << 5) & 0x20;
-            header |= (m_config.enable_trade_based_encoding << 6) & 0x40;
+            header |= (m_config.enable_trade_based << 6) & 0x40;
             output.push_back(header);
 
             // Bits 0-4: Number of decimal places for the volume
@@ -246,8 +251,8 @@ namespace dfh::compression {
             size_t offset = 0;
             uint8_t header = input[offset++];
             m_config.price_digits = header & 0x1F;
-            m_config.enable_tick_flags           = (header & 0x20) != 0;
-            m_config.enable_trade_based_encoding = (header & 0x40) != 0;
+            m_config.enable_tick_flags  = (header & 0x20) != 0;
+            m_config.enable_trade_based = (header & 0x40) != 0;
 
             header = input[offset++];
             m_config.volume_digits  = header & 0x1F;
@@ -298,7 +303,7 @@ namespace dfh::compression {
         TickCompressionContextV1 m_buffer;
         TickEncoderV1         m_encoder;
         TickDecoderV1         m_decoder;
-        TickEncodingConfig    m_config;      ///< The encoding configuration.
+        TickCodecConfig       m_config;      ///< The encoding configuration.
         uint64_t              m_interval_ms; ///< The time interval for tick data segmentation in milliseconds.
     };
 
@@ -402,12 +407,11 @@ int main() {
                 return;
             }
 
-            dfh::TickEncodingConfig compressor_config;
+            dfh::TickCodecConfig compressor_config;
             compressor_config.enable_tick_flags = true;
-            compressor_config.enable_trade_based_encoding = true;
+            compressor_config.enable_trade_based = true;
             compressor_config.price_digits = sequence.price_digits;
             compressor_config.volume_digits = sequence.volume_digits;
-            compressor_config.fixed_spread = 1;
 
             dfh::compression::RawTickCompressorV1 compressor;
             compressor.set_config(compressor_config);

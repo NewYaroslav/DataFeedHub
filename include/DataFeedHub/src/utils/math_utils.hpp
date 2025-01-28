@@ -44,6 +44,21 @@ namespace dfh::utils {
         return static_cast<T>(powers_of_ten[digits]);
     }
 
+    /// \brief Возвращает медианное значение из трёх входных.
+    /// \param a Первое значение.
+    /// \param b Второе значение.
+    /// \param c Третье значение.
+    /// \return Медианное значение из трёх.
+    template <typename T>
+    T median_filter(T a, T b, T c) {
+        if ((a >= b && a <= c) || (a <= b && a >= c)) {
+            return a;
+        } else
+        if ((b >= a && b <= c) || (b <= a && b >= c)) {
+            return b;
+        }
+        return c;
+    }
 } // namespace dfh::utils
 
 #endif // _DATAFEEDHUB_UTILS_MATH_UTILS_HPP_INCLUDED

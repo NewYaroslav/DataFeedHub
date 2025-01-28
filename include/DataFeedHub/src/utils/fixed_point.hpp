@@ -1,5 +1,6 @@
-#ifndef _DATAFEEDHUB_UTILS_FIXED_POINT_HPP_INCLUDED
-#define _DATAFEEDHUB_UTILS_FIXED_POINT_HPP_INCLUDED
+#pragma once
+#ifndef _DFH_UTILS_FIXED_POINT_HPP_INCLUDED
+#define _DFH_UTILS_FIXED_POINT_HPP_INCLUDED
 
 /// \file fixed_point.hpp
 /// \brief
@@ -97,6 +98,19 @@ namespace dfh::utils {
 		return static_cast<double>(value) / static_cast<double>(scale);
 	}
 
-} // namespace DataFeedHub
+	/// \brief Compares two floating-point numbers with respect to a specified precision.
+    /// \param value1 The first value to compare.
+    /// \param value2 The second value to compare.
+    /// \param digits The number of decimal places to consider for the comparison.
+    /// \return True if the values are equal within the specified precision, otherwise false.
+    inline bool compare_with_precision(double value1, double value2, size_t digits) {
+        if (digits > 18) {
+            throw std::invalid_argument("Digits exceed maximum precision (18).");
+        }
+        double tolerance = precision_tolerance(digits);
+        return std::fabs(value1 - value2) <= tolerance;
+    }
 
-#endif // _DATAFEEDHUB_UTILS_FIXED_POINT_HPP_INCLUDED
+} // namespace dfh::utils
+
+#endif // _DFH_UTILS_FIXED_POINT_HPP_INCLUDED
