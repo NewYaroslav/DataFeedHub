@@ -43,6 +43,7 @@
 #include <DataFeedHub/src/compression/ticks/TickCompressorV1/TickDecoderV1.hpp>
 #include <DataFeedHub/src/compression/ticks/TickCompressorV1.hpp>
 #include <DataFeedHub/src/structures/ticks/flags.hpp>
+#include <DataFeedHub/src/core/IMarketDataSource.hpp>
 #include <DataFeedHub/src/core/MarketDataBuffer/StreamTickBuffer.hpp>
 #include <algorithm>
 
@@ -459,7 +460,7 @@ TEST(StreamTickBufferTest, TestRealLoader) {
     buffer.set_bidask_config(restore_config);
 
     // Load ticks into the buffer using a mock loader that simulates real-time data.
-    buffer.load_ticks(86400000, mock_loader_real);
+    buffer.test_load_ticks_2(86400000, mock_loader_real);
 
     // Verify that the buffer contains the expected number of ticks.
     // The tick count should match the expected size for the generated data.

@@ -5,8 +5,8 @@
 /// \file dfh.hpp
 /// \brief
 
-#include "src/structures.hpp"
-#include "src/utils.hpp"
-#include "src/compression.hpp"
+#include "structures.hpp"
+#include "utils.hpp"
+#include "compression.hpp"
 
 #endif // _DTH_HPP_INCLUDED
