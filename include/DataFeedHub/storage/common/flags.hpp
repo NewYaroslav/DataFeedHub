@@ -5,7 +5,7 @@
 /// \file flags.hpp
 /// \brief Flags describing which types of data are stored in a storage backend.
 
-namespace dfh {
+namespace dfh::storage {
 
     /// \enum StorageDataFlags
     /// \brief Bitmask flags representing the types of data stored in a storage backend.

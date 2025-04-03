@@ -4,17 +4,20 @@
 
 /// \file storage.hpp
 /// \brief Central include for the DataFeedHub storage module.
-///
-/// Provides access to interfaces, common types, factory methods,
+/// \details Provides access to interfaces, common types, factory methods,
 /// and backend implementations used for storing market data.
 
+//------------------------------------------------------------------------------
+// Standard Library Headers
+//------------------------------------------------------------------------------
+
 #include <mutex>
-#include <cstdint>
-#include <string>
-#include <unordered_map>
-#include <stdexcept>
 #include <filesystem>
 #include <thread>
+
+//------------------------------------------------------------------------------
+// Core Module Headers
+//------------------------------------------------------------------------------
 
 #include "data.hpp"
 #include "utils.hpp"
@@ -22,7 +25,7 @@
 #include "compression.hpp"
 
 //------------------------------------------------------------------------------
-// Storage domain
+// Storage Domain Headers
 //------------------------------------------------------------------------------
 
 #include "storage/common.hpp"

@@ -42,7 +42,6 @@ namespace dfh::storage {
         /// \throws StorageException If the system is not started.
         TransactionGuardPtr transaction(TransactionMode mode) {
             if (!m_started) throw StorageException("MarketDataStorageHub: not started.");
-            //return std::make_unique<TransactionGuard>(mode, m_storage_list);
             return create_guard(mode, m_storage_list);
         }
 
@@ -98,6 +97,26 @@ namespace dfh::storage {
         /// \return Storage metadata for each backend.
         const std::vector<StorageMetadata>& metadata() const {
             return m_storage_metadata;
+        }
+
+        //--- Metadata operations ---
+
+        /// \brief Adds or extends metadata for the specified storage backend.
+        /// \param guard Active transaction guard managing backend transactions.
+        /// \param db_index Index of the target storage backend.
+        /// \param metadata Metadata to merge with the existing metadata.
+        void extend_metadata(const TransactionGuardPtr &guard, size_t db_index, const StorageMetadata& metadata) {
+            if (db_index >= m_storage_list.size()) throw StorageException("MarketDataStorageHub: invalid storage backend index in extend_metadata");
+            m_storage_list[db_index]->extend_metadata(get_transaction(guard.get(), db_index), metadata);
+        }
+
+        /// \brief Erases data corresponding to the specified metadata from the storage backend.
+        /// \param guard Active transaction guard managing backend transactions.
+        /// \param db_index Index of the target storage backend.
+        /// \param metadata Metadata describing the data to be removed.
+        void erase_data(const TransactionGuardPtr &guard, size_t db_index, const StorageMetadata& metadata) {
+            if (db_index >= m_storage_list.size()) throw StorageException("MarketDataStorageHub: invalid storage backend index in erase_data");
+            m_storage_list[db_index]->erase_data(get_transaction(guard.get(), db_index), metadata);
         }
 
         //--- Data fetch ---
@@ -185,7 +204,7 @@ namespace dfh::storage {
             bool success = false;
             for (uint64_t segment = segment_start; segment <= segment_stop; ++segment) {
                 const size_t db_index = find_storage_index(
-                        dfh::StorageDataFlags::BARS,
+                        StorageDataFlags::BARS,
                         market_type,
                         exchange_id,
                         symbol_id,
@@ -267,7 +286,7 @@ namespace dfh::storage {
                 const uint64_t segment_time_ms = time_shield::start_of_period(duration_ms, out_segments[i][0].time_ms);
 
                 const size_t db_index = find_storage_index(
-                    dfh::StorageDataFlags::BARS,
+                    StorageDataFlags::BARS,
                     market_type,
                     exchange_id,
                     symbol_id,
@@ -337,7 +356,7 @@ namespace dfh::storage {
 
             for (uint64_t segment = segment_start; segment <= segment_stop; ++segment) {
                 const size_t db_index = find_storage_index(
-                        dfh::StorageDataFlags::BARS,
+                        StorageDataFlags::BARS,
                         market_type,
                         exchange_id,
                         symbol_id,

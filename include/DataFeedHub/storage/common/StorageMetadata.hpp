@@ -134,7 +134,7 @@ namespace dfh::storage {
         /// \brief Checks if a specific data flag is present.
         /// \param flag Flag to check.
         /// \return True if flag is set, false otherwise.
-        bool has_flag(dfh::StorageDataFlags flag) const {
+        bool has_flag(StorageDataFlags flag) const {
             return (data_flags & flag) != StorageDataFlags::NONE;
         }
 

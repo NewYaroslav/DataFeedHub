@@ -37,6 +37,38 @@ namespace dfh {
         FINALIZED_BARS          = 1 << 13   ///< All bars in the dataset are fully finalized (no incomplete bar at end)
     };
 
+    /// \brief Enables bitwise OR for BarStorageFlags.
+    inline BarStorageFlags operator|(BarStorageFlags a, BarStorageFlags b) {
+        return static_cast<BarStorageFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    }
+
+    /// \brief Enables bitwise AND for BarStorageFlags.
+    inline BarStorageFlags operator&(BarStorageFlags a, BarStorageFlags b) {
+        return static_cast<BarStorageFlags>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+    }
+
+    /// \brief Enables bitwise NOT for BarStorageFlags.
+    inline BarStorageFlags operator~(BarStorageFlags a) {
+        return static_cast<BarStorageFlags>(~static_cast<uint32_t>(a));
+    }
+
+    /// \brief Enables bitwise OR assignment for BarStorageFlags.
+    inline BarStorageFlags& operator|=(BarStorageFlags& a, BarStorageFlags b) {
+        a = a | b;
+        return a;
+    }
+
+    /// \brief Enables bitwise AND assignment for BarStorageFlags.
+    inline BarStorageFlags& operator&=(BarStorageFlags& a, BarStorageFlags b) {
+        a = a & b;
+        return a;
+    }
+
+    /// \brief Enables comparison with zero for BarStorageFlags.
+    inline bool operator!=(BarStorageFlags a, int b) {
+        return static_cast<uint32_t>(a) != static_cast<uint32_t>(b);
+    }
+
 } // namespace dfh
 
 #endif // _DTH_DATA_BAR_FLAGS_HPP_INCLUDED
