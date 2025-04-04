@@ -36,7 +36,6 @@ std::vector<dfh::MarketBar> generate_bars(int y, int m, int d, size_t count) {
 
 int main() {
     dfh::storage::mdbx::MDBXConfig config;
-    //config.pathname = "./test-db";
     config.pathname = "test-db";
     auto connection = dfh::storage::create_connection(std::move(config));
 

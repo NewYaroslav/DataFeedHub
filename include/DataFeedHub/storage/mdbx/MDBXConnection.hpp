@@ -122,6 +122,7 @@ namespace dfh::storage::mdbx {
             std::filesystem::path file_path(m_config->pathname);
 #           endif
             fs::path parent_dir = file_path.parent_path();
+            if (parent_dir.empty()) parent_dir = fs::current_path();
             if (!std::filesystem::exists(parent_dir)) {
                 std::error_code ec;
                 if (!std::filesystem::create_directories(parent_dir, ec)) {
@@ -173,6 +174,7 @@ namespace dfh::storage::mdbx {
 #           else
 			rc = mdbx_env_open(m_env, m_config->pathname, env_flags, 0664);
 #           endif
+            std::cout << "--3" << std::endl;
 			if (rc != MDBX_SUCCESS) throw MDBXException(
                 "mdbx_env_open failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
