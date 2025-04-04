@@ -53,14 +53,14 @@ namespace dfh::storage {
                 if (storage->is_connected()) continue;
                 storage->connect();
             }
-            auto guard = transaction(TransactionMode::WRITABLE);
 
-            guard->begin();
+            auto tx_guard = create_guard(TransactionMode::WRITABLE, m_storage_list);
+            tx_guard->begin();
             for (size_t db_index = 0; db_index < m_storage_list.size(); ++db_index) {
-                m_storage_list[db_index]->start(get_transaction(guard.get(), db_index));
+                m_storage_list[db_index]->start(get_transaction(tx_guard.get(), db_index));
             }
-            refresh_metadata(guard);
-            guard->commit();
+            refresh_metadata(tx_guard);
+            tx_guard->commit();
 
             m_started = true;
         }
@@ -69,13 +69,13 @@ namespace dfh::storage {
         /// \throws StorageException If shutdown fails.
         void stop() {
             if (!m_started) return;
-            auto guard = transaction(TransactionMode::WRITABLE);
 
-            guard->begin();
+            auto tx_guard = transaction(TransactionMode::WRITABLE);
+            tx_guard->begin();
             for (size_t db_index = 0; db_index < m_storage_list.size(); ++db_index) {
-                m_storage_list[db_index]->stop(get_transaction(guard.get(), db_index));
+                m_storage_list[db_index]->stop(get_transaction(tx_guard.get(), db_index));
             }
-            guard->commit();
+            tx_guard->commit();
 
             for (const auto& storage : m_storage_list) {
                 if (!storage->is_connected()) continue;

@@ -133,7 +133,8 @@ namespace dfh::storage::mdbx {
 		void db_init() {
 			int rc = 0;
 			rc = mdbx_env_create(&m_env);
-			if (rc != MDBX_SUCCESS) throw MDBXException("mdbx_env_create failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
+			if (rc != MDBX_SUCCESS) throw MDBXException(
+                "mdbx_env_create failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
 			rc = mdbx_env_set_geometry(
 				m_env,
@@ -143,18 +144,21 @@ namespace dfh::storage::mdbx {
 				m_config->growth_step,
 				m_config->shrink_threshold,
 				m_config->page_size);
-			if (rc != MDBX_SUCCESS) throw MDBXException("mdbx_env_set_geometry failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
+			if (rc != MDBX_SUCCESS) throw MDBXException(
+                "mdbx_env_set_geometry failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
 			const int max_dbs = 16;
 			rc = mdbx_env_set_maxdbs(m_env, max_dbs);
-			if (rc != MDBX_SUCCESS) throw MDBXException("mdbx_env_set_maxdbs failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
+			if (rc != MDBX_SUCCESS) throw MDBXException(
+                "mdbx_env_set_maxdbs failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
 			if (m_config->max_readers) {
 				rc = mdbx_env_set_maxreaders(m_env, m_config->max_readers);
 			} else {
 				rc = mdbx_env_set_maxreaders(m_env, std::thread::hardware_concurrency() * 2);
 			}
-			if (rc != MDBX_SUCCESS) throw MDBXException("mdbx_env_set_maxreaders failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
+			if (rc != MDBX_SUCCESS) throw MDBXException(
+                "mdbx_env_set_maxreaders failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
 			MDBX_env_flags_t env_flags = MDBX_ACCEDE | MDBX_NOSUBDIR | MDBX_SYNC_DURABLE;
 			if (m_config->read_only) env_flags |= MDBX_RDONLY;
@@ -169,10 +173,16 @@ namespace dfh::storage::mdbx {
 #           else
 			rc = mdbx_env_open(m_env, m_config->pathname, env_flags, 0664);
 #           endif
-			if (rc != MDBX_SUCCESS) throw MDBXException("mdbx_env_open failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
+			if (rc != MDBX_SUCCESS) throw MDBXException(
+                "mdbx_env_open failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
 			rc = mdbx_txn_begin(m_env, nullptr, MDBX_TXN_RDONLY, &m_rdonly_txn);
-			if (rc != MDBX_SUCCESS) throw MDBXException("Failed to begin transaction: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc), rc));
+			if (rc != MDBX_SUCCESS) throw MDBXException(
+                "mdbx_txn_begin failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
+
+            rc = mdbx_txn_reset(m_rdonly_txn);
+            if (rc != MDBX_SUCCESS) throw MDBXException(
+                "mdbx_txn_reset failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 		}
 
     }; // MDBXConnection

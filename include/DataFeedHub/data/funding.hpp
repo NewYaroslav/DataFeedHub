@@ -5,9 +5,7 @@
 /// \file funding.hpp
 /// \brief
 
-#include "funding/FundingRate.hpp"
-#include "funding/FundingRateInfo.hpp"
-#include "funding/FundingRateSequence.hpp"
-#include "funding/FundingRatePair.hpp"
+#include "funding/enums.hpp"
+#include "funding/FundingDetails.hpp"
 
 #endif // _DTH_DATA_FUNDING_HPP_INCLUDED

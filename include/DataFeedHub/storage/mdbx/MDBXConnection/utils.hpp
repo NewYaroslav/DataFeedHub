@@ -26,9 +26,8 @@ namespace dfh::storage::mdbx {
         MDBX_val db_data{const_cast<void*>(static_cast<const void*>(std::addressof(data))), sizeof(T)};
 
         int rc = mdbx_put(txn, dbi, &db_key, &db_data, batch_write ? (MDBX_APPEND | MDBX_UPSERT) : MDBX_UPSERT);
-        if (rc != MDBX_SUCCESS) {
-            throw MDBXException("Failed to put fixed-size object: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_SUCCESS) throw MDBXException(
+            "Failed to put fixed-size object: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
     }
 
     /// \brief Inserts or updates raw binary data using an integral key (32-bit or 64-bit).
@@ -44,17 +43,14 @@ namespace dfh::storage::mdbx {
     void put_raw_key(MDBX_txn* txn, MDBX_dbi dbi, Key key, const void* data, size_t size, bool batch_write = false) {
         static_assert(std::is_same<Key, uint32_t>::value || std::is_same<Key, uint64_t>::value,"Key must be either uint32_t or uint64_t (supported by MDBX)");
 
-        if (!data || size == 0) {
-            throw MDBXException("Invalid input: data is null or size is zero.");
-        }
+        if (!data || size == 0) throw MDBXException("Invalid input: data is null or size is zero.");
 
         MDBX_val db_key{std::addressof(key), sizeof(Key)};
         MDBX_val db_data{const_cast<void*>(data), size};
 
         int rc = mdbx_put(txn, dbi, &db_key, &db_data, batch_write ? (MDBX_APPEND | MDBX_UPSERT) : MDBX_UPSERT);
-        if (rc != MDBX_SUCCESS) {
-            throw MDBXException("Failed to put raw data: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_SUCCESS) throw MDBXException(
+            "Failed to put raw data: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
     }
 
     /// \brief Retrieves raw binary data using an integral key (32-bit or 64-bit).
@@ -74,9 +70,8 @@ namespace dfh::storage::mdbx {
 
         int rc = mdbx_get(txn, dbi, &db_key, &db_data);
         if (rc == MDBX_NOTFOUND) return false;
-        if (rc != MDBX_SUCCESS) {
-            throw MDBXException("Failed to get raw data: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_SUCCESS) throw MDBXException(
+            "Failed to get raw data: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
         out_data.assign(
             static_cast<const uint8_t*>(db_data.iov_base),
@@ -105,13 +100,9 @@ namespace dfh::storage::mdbx {
 
         int rc = mdbx_get(txn, dbi, &db_key, &db_data);
         if (rc == MDBX_NOTFOUND) return false;
-        if (rc != MDBX_SUCCESS) {
-            throw MDBXException("Failed to get object: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
-
-        if (db_data.iov_len != sizeof(T)) {
-            throw MDBXException("Data size mismatch for type T.");
-        }
+        if (rc != MDBX_SUCCESS) throw MDBXException(
+            "Failed to get object: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
+        if (db_data.iov_len != sizeof(T)) throw MDBXException("Data size mismatch for type T.");
 
         std::memcpy(&out_obj, db_data.iov_base, sizeof(T));
         return true;
@@ -128,9 +119,8 @@ namespace dfh::storage::mdbx {
         static_assert(std::is_same<Key, uint32_t>::value || std::is_same<Key, uint64_t>::value,"Key must be either uint32_t or uint64_t (supported by MDBX)");
         MDBX_val db_key{std::addressof(key), sizeof(Key)};
         int rc = mdbx_del(txn, dbi, &db_key, nullptr);
-        if (rc != MDBX_SUCCESS && rc != MDBX_NOTFOUND) {
-            throw MDBXException("Failed to delete key: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_SUCCESS && rc != MDBX_NOTFOUND) throw MDBXException(
+            "Failed to delete key: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
     }
 
     /// \brief Deletes all key-value pairs from the given MDBX database.
@@ -140,27 +130,26 @@ namespace dfh::storage::mdbx {
     inline void erase_all_entries(MDBX_txn* txn, MDBX_dbi dbi) {
         MDBX_cursor* cursor = nullptr;
         int rc = mdbx_cursor_open(txn, dbi, &cursor);
-        if (rc != MDBX_SUCCESS) {
-            throw MDBXException("Failed to open cursor for erase_all_entries: (" +
-                                std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_SUCCESS) throw MDBXException(
+            "Failed to open cursor for erase_all_entries: (" +
+            std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
         MDBX_val key, data;
         while ((rc = mdbx_cursor_get(cursor, &key, &data, MDBX_NEXT)) == MDBX_SUCCESS) {
             int del_rc = mdbx_cursor_del(cursor, MDBX_CURRENT);
             if (del_rc != MDBX_SUCCESS) {
                 mdbx_cursor_close(cursor);
-                throw MDBXException("Failed to delete entry: (" +
-                                    std::to_string(del_rc) + ") " + std::string(mdbx_strerror(del_rc)));
+                throw MDBXException(
+                    "Failed to delete entry: (" +
+                    std::to_string(del_rc) + ") " + std::string(mdbx_strerror(del_rc)), del_rc);
             }
         }
 
         mdbx_cursor_close(cursor);
 
-        if (rc != MDBX_NOTFOUND) {
-            throw MDBXException("Failed during erase_all_entries iteration: (" +
-                                std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_NOTFOUND) throw MDBXException(
+            "Failed during erase_all_entries iteration: (" +
+            std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
     }
 
     /// \brief Deletes entries from a table where a key (32-bit or 64-bit) matches a masked value.
@@ -176,10 +165,9 @@ namespace dfh::storage::mdbx {
 
         MDBX_cursor* cursor = nullptr;
         int rc = mdbx_cursor_open(txn, dbi, &cursor);
-        if (rc != MDBX_SUCCESS) {
-            throw MDBXException("Failed to open cursor for erase_key_masked: (" +
-                                std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_SUCCESS) throw MDBXException(
+            "Failed to open cursor for erase_key_masked: (" +
+             std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
         MDBX_val db_key, db_data;
         while ((rc = mdbx_cursor_get(cursor, &db_key, &db_data, MDBX_NEXT)) == MDBX_SUCCESS) {
@@ -192,17 +180,17 @@ namespace dfh::storage::mdbx {
                 int del_rc = mdbx_cursor_del(cursor, MDBX_CURRENT);
                 if (del_rc != MDBX_SUCCESS) {
                     mdbx_cursor_close(cursor);
-                    throw MDBXException("Failed to delete entry in erase_key_masked: (" +
-                                        std::to_string(del_rc) + ") " + std::string(mdbx_strerror(del_rc)));
+                    throw MDBXException(
+                        "Failed to delete entry in erase_key_masked: (" +
+                        std::to_string(del_rc) + ") " + std::string(mdbx_strerror(del_rc)), del_rc);
                 }
             }
         }
 
         mdbx_cursor_close(cursor);
-        if (rc != MDBX_NOTFOUND) {
-            throw MDBXException("Cursor iteration failed in erase_key_masked: (" +
-                                std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_NOTFOUND) throw MDBXException(
+            "Cursor iteration failed in erase_key_masked: (" +
+            std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
     }
 
     /// \brief Retrieves all fixed-size records with integral keys into a vector of values.
@@ -220,8 +208,8 @@ namespace dfh::storage::mdbx {
 
         MDBX_cursor* cursor = nullptr;
         int rc = mdbx_cursor_open(txn, dbi, &cursor);
-        if (rc != MDBX_SUCCESS)
-            throw MDBXException("Failed to open cursor: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
+        if (rc != MDBX_SUCCESS) throw MDBXException(
+            "Failed to open cursor: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
         MDBX_val db_key, db_data;
         while ((rc = mdbx_cursor_get(cursor, &db_key, &db_data, MDBX_NEXT)) == MDBX_SUCCESS) {
@@ -240,9 +228,8 @@ namespace dfh::storage::mdbx {
         }
 
         mdbx_cursor_close(cursor);
-        if (rc != MDBX_NOTFOUND) {
-            throw MDBXException("Cursor iteration failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_NOTFOUND) throw MDBXException(
+            "Cursor iteration failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
         return !out_vector.empty();
     }
@@ -262,8 +249,8 @@ namespace dfh::storage::mdbx {
 
         MDBX_cursor* cursor = nullptr;
         int rc = mdbx_cursor_open(txn, dbi, &cursor);
-        if (rc != MDBX_SUCCESS)
-            throw MDBXException("Failed to open cursor: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
+        if (rc != MDBX_SUCCESS) throw MDBXException(
+            "Failed to open cursor: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
         MDBX_val db_key, db_data;
         while ((rc = mdbx_cursor_get(cursor, &db_key, &db_data, MDBX_NEXT)) == MDBX_SUCCESS) {
@@ -284,9 +271,8 @@ namespace dfh::storage::mdbx {
         }
 
         mdbx_cursor_close(cursor);
-        if (rc != MDBX_NOTFOUND) {
-            throw MDBXException("Cursor iteration failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)));
-        }
+        if (rc != MDBX_NOTFOUND) throw MDBXException(
+            "Cursor iteration failed: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 
         return !out_map.empty();
     }

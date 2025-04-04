@@ -49,15 +49,13 @@ namespace dfh::storage::mdbx {
             case TransactionMode::READ_ONLY:
                 m_txn = m_connection->rdonly_handle();
                 m_rc = mdbx_txn_renew(m_txn);
-                if (m_rc != MDBX_SUCCESS) {
-                    throw MDBXException("Failed to renew transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc), m_rc));
-                }
+                if (m_rc != MDBX_SUCCESS) throw MDBXException(
+                        "Failed to renew transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc)), m_rc);
                 break;
             case TransactionMode::WRITABLE:
                 m_rc = mdbx_txn_begin(m_connection->env_handle(), nullptr, MDBX_TXN_READWRITE, &m_txn);
-                if (m_rc != MDBX_SUCCESS) {
-                    throw MDBXException("Failed to begin transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc), m_rc));
-                }
+                if (m_rc != MDBX_SUCCESS) throw MDBXException(
+                        "Failed to begin transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc)), m_rc);
                 break;
             };
         }
@@ -69,12 +67,14 @@ namespace dfh::storage::mdbx {
             switch (m_mode) {
             case TransactionMode::READ_ONLY:
                 m_rc = mdbx_txn_reset(m_txn);
-                if (m_rc != MDBX_SUCCESS) throw MDBXException("Failed to reset read-only transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc), m_rc));
+                if (m_rc != MDBX_SUCCESS) throw MDBXException(
+                    "Failed to reset read-only transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc)), m_rc);
                 m_txn = nullptr;
                 break;
             case TransactionMode::WRITABLE:
                 m_rc = mdbx_txn_commit(m_txn);
-                if (m_rc != MDBX_SUCCESS) throw MDBXException("Failed to commit writable transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc), m_rc));
+                if (m_rc != MDBX_SUCCESS) throw MDBXException(
+                    "Failed to commit writable transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc)), m_rc);
                 m_txn = nullptr;
                 break;
             };
@@ -87,12 +87,14 @@ namespace dfh::storage::mdbx {
             switch (m_mode) {
             case TransactionMode::READ_ONLY:
                 m_rc = mdbx_txn_reset(m_txn);
-                if (m_rc != MDBX_SUCCESS) throw MDBXException("Failed to reset read-only transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc), m_rc));
+                if (m_rc != MDBX_SUCCESS) throw MDBXException(
+                    "Failed to reset read-only transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc)), m_rc);
                 m_txn = nullptr;
                 break;
             case TransactionMode::WRITABLE:
                 m_rc = mdbx_txn_abort(m_txn);
-                if (m_rc != MDBX_SUCCESS) throw MDBXException("Failed to abort writable transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc), m_rc));
+                if (m_rc != MDBX_SUCCESS) throw MDBXException(
+                    "Failed to abort writable transaction: (" + std::to_string(m_rc) + ") " + std::string(mdbx_strerror(m_rc)), m_rc);
                 m_txn = nullptr;
                 break;
             };

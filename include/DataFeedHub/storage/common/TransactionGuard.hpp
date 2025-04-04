@@ -7,9 +7,6 @@
 
 namespace dfh::storage {
 
-    //class TransactionGuard; ///< Forward declare
-
-
     /// \class TransactionGuard
     /// \brief RAII transaction manager for multiple market data storage backends.
     ///
@@ -43,7 +40,7 @@ namespace dfh::storage {
                 m_transaction_list[i]->begin();
             }
             for (size_t i = 0; i < m_storage_list.size(); ++i) {
-                m_storage_list[i]->before_transaction(transaction(i));
+                m_storage_list[i]->before_transaction(m_transaction_list[i]);
             }
             m_started = true;
         }
