@@ -39,14 +39,16 @@ int main() {
     config.pathname = "test-db";
     auto connection = dfh::storage::create_connection(std::move(config));
 
-    std::cout << "connect" << std::endl;
+    std::cout << "[1] Connecting to MDBX database..." << std::endl;
     connection->connect();
+    std::cout << "[1] Connection established." << std::endl;
 
     dfh::storage::MarketDataStorageHub hub;
     hub.add_storage(dfh::storage::create_storage(connection));
 
-    std::cout << "start" << std::endl;
+    std::cout << "[2] Starting storage hub..." << std::endl;
     hub.start();
+    std::cout << "[2] Storage hub started." << std::endl;
 
     dfh::BarCodecConfig codec;
     codec.time_frame = dfh::TimeFrame::M1;
@@ -73,7 +75,7 @@ int main() {
     };
 
     // Запись метаданных БД
-    std::cout << "metadata" << std::endl;
+    std::cout << "[3] Writing metadata for all symbols..." << std::endl;
     {
         dfh::storage::StorageMetadata metadata;
         metadata.data_flags = dfh::storage::StorageDataFlags::BARS;
@@ -89,8 +91,9 @@ int main() {
         hub.extend_metadata(tx_guard, 0, metadata);
         tx_guard->commit();
     }
+    std::cout << "[3] Metadata written successfully." << std::endl;
 
-    std::cout << "upsert bars" << std::endl;
+    std::cout << "[4] Inserting bars into storage..." << std::endl;
     {
         // Запись баров
         auto tx_guard = hub.transaction(dfh::storage::TransactionMode::WRITABLE);
@@ -101,9 +104,9 @@ int main() {
         }
         tx_guard->commit();
     }
+    std::cout << "[4] Bar insertion completed." << std::endl;
 
-    std::cout << "fetch bars" << std::endl;
-    // Чтение и проверка
+    std::cout << "[5] Fetching and verifying stored bars..." << std::endl;
     for (const auto& s : symbols) {
         auto original = generate_bars(2025, 4, s.day, 1440);
         std::vector<dfh::MarketBar> read;
@@ -120,16 +123,19 @@ int main() {
 
         assert(ok && "Bars not fetched");
 
-        std::cout << "read.size() " << read.size() << std::endl;
+        std::cout << "[5] Fetched " << read.size() << " bars for symbol_id=" << s.symbol_id << std::endl;
         assert(read.size() == original.size());
 
         for (size_t i = 0; i < read.size(); ++i) {
             assert(bar_equal(read[i], original[i]) && "Bar mismatch");
         }
     }
+    std::cout << "[5] All bars verified successfully." << std::endl;
 
-    std::cout << "stop" << std::endl;
+    std::cout << "[6] Stopping storage hub..." << std::endl;
     hub.stop();
+    std::cout << "[6] Storage hub stopped." << std::endl;
+
     std::cout << "All tests passed." << std::endl;
     return 0;
 }
