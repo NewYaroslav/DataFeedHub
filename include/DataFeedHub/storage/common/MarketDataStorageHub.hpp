@@ -108,6 +108,7 @@ namespace dfh::storage {
         void extend_metadata(const TransactionGuardPtr &guard, size_t db_index, const StorageMetadata& metadata) {
             if (db_index >= m_storage_list.size()) throw StorageException("MarketDataStorageHub: invalid storage backend index in extend_metadata");
             m_storage_list[db_index]->extend_metadata(get_transaction(guard.get(), db_index), metadata);
+            m_storage_list[db_index]->fetch(get_transaction(guard.get(), db_index), m_storage_metadata[db_index]);
         }
 
         /// \brief Erases data corresponding to the specified metadata from the storage backend.
