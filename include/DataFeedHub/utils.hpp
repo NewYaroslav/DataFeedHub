@@ -34,11 +34,12 @@
 // Third-party libraries
 //------------------------------------------------------------------------------
 
-#include <fast_double_parser.h>
 #include <nlohmann/json.hpp>
-#include <simdcomp.h>
+#include <simdcomp/simdcomp.h>
+#include <libvbyte/vbyte.h>
+#include <fast_double_parser/fast_double_parser.h>
 #include <time_shield_cpp/time_shield.hpp>
-#include <vbyte.h>
+
 
 //------------------------------------------------------------------------------
 // Internal data structures
