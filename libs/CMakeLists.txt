@@ -8,9 +8,33 @@ include(${LIBS_CMAKE_DIR}/install_static_libs.cmake)
 include(${LIBS_CMAKE_DIR}/install_runtime_dlls.cmake)
 
 # zlib
-add_subdirectory(zlib) # соберётся как zlibstatic
+# add_subdirectory(zlib) # соберётся как zlibstatic
+# move_static_output(zlibstatic)
+# install_headers_to_include(zlib ${CMAKE_CURRENT_LIST_DIR}/zlib)
+
+# zlib-ng
+include(${LIBS_CMAKE_DIR}/zlib-ng-config.cmake)
+add_subdirectory(zlib-ng)
 move_static_output(zlibstatic)
-install_headers_to_include(zlib ${CMAKE_CURRENT_LIST_DIR}/zlib)
+install_headers_to_include("." ${CMAKE_BINARY_DIR}/zlib-ng)
+
+# Удалить старые значения переменных, если вдруг что-то "нашлось"
+unset(ZLIB_FOUND CACHE)
+unset(ZLIB_INCLUDE_DIRS CACHE)
+unset(ZLIB_LIBRARIES CACHE)
+unset(ZLIB_VERSION_STRING CACHE)
+unset(ZLIB_INCLUDE_DIR CACHE)
+unset(ZLIB_LIBRARY CACHE)
+
+# Сообщаем minizip-ng, что нашли zlib
+set(ZLIB_FOUND TRUE CACHE INTERNAL "")
+set(ZLIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/zlib-ng CACHE INTERNAL "")
+set(ZLIB_LIBRARIES zlibstatic CACHE INTERNAL "")
+set(ZLIB_VERSION_STRING "2.1.6" CACHE INTERNAL "")
+
+# Альтернативные имена для совместимости
+set(ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIRS} CACHE INTERNAL "")
+set(ZLIB_LIBRARY ${ZLIB_LIBRARIES} CACHE INTERNAL "")
 
 # minizip-ng
 include(${LIBS_CMAKE_DIR}/minizip-ng-config.cmake)
@@ -21,11 +45,11 @@ install_headers_to_include("." ${CMAKE_CURRENT_LIST_DIR}/minizip-ng)
 
 # simdcomp
 include(${LIBS_CMAKE_DIR}/simdcomp-wrapper.cmake)
-install_headers_to_include(simdcomp ${CMAKE_CURRENT_LIST_DIR}/simdcomp/include)
+install_headers_to_include("." ${CMAKE_CURRENT_LIST_DIR}/simdcomp/include)
 
 # vbyte
 include(${LIBS_CMAKE_DIR}/vbyte-wrapper.cmake)
-install_headers_to_include(libvbyte ${CMAKE_CURRENT_LIST_DIR}/libvbyte)
+install_headers_to_include("." ${CMAKE_CURRENT_LIST_DIR}/libvbyte)
 
 # zstd
 include(${LIBS_CMAKE_DIR}/zstd-wrapper.cmake)
@@ -60,7 +84,7 @@ install_headers_to_include(gzip            ${CMAKE_CURRENT_LIST_DIR}/gzip-hpp/in
 install_headers_to_include(nlohmann        ${CMAKE_CURRENT_LIST_DIR}/json/include/nlohmann)
 # install_headers_to_include(Simple-WebSocket-Server ${CMAKE_CURRENT_LIST_DIR}/Simple-WebSocket-Server)
 # install_headers_to_include(kurlyk          ${CMAKE_CURRENT_LIST_DIR}/kurlyk/include)
-install_headers_to_include(fast_double_parser ${CMAKE_CURRENT_LIST_DIR}/fast_double_parser/include)
+install_headers_to_include("."             ${CMAKE_CURRENT_LIST_DIR}/fast_double_parser/include)
 install_headers_to_include(fast_float      ${CMAKE_CURRENT_LIST_DIR}/fast_float/include)
 
 add_custom_target(all_libs_built ALL
