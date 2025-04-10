@@ -7,11 +7,6 @@ include(${LIBS_CMAKE_DIR}/install-headers.cmake)
 include(${LIBS_CMAKE_DIR}/install-static-libs.cmake)
 include(${LIBS_CMAKE_DIR}/install-runtime-dlls.cmake)
 
-# zlib
-# add_subdirectory(zlib) # соберётся как zlibstatic
-# move_static_output(zlibstatic)
-# install_headers_to_include(zlib ${CMAKE_CURRENT_LIST_DIR}/zlib)
-
 # zlib-ng
 include(${LIBS_CMAKE_DIR}/zlib-ng-options.cmake)
 add_subdirectory(zlib-ng)
@@ -64,7 +59,7 @@ install_headers_to_include("." ${CMAKE_CURRENT_LIST_DIR}/libmdbx)
 # sqlite
 include(${LIBS_CMAKE_DIR}/sqlite-wrapper.cmake)
 move_static_output(sqlite3)
-install_headers_to_include("." ${CMAKE_CURRENT_LIST_DIR}/sqlite)
+install_headers_to_include("." ${CMAKE_BINARY_DIR}/sqlite)
 
 # openssl
 # install_headers_to_include(openssl ${CMAKE_CURRENT_LIST_DIR}/openssl-win64-v3.4.0/include/openssl)
