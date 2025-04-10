@@ -19,9 +19,6 @@
 [submodule "libs/gzip-hpp"]
 	path = libs/gzip-hpp
 	url = https://github.com/NewYaroslav/gzip-hpp.git
-[submodule "libs/zlib"]
-	path = libs/zlib
-	url = https://github.com/madler/zlib.git
 [submodule "libs/zstd"]
 	path = libs/zstd
 	url = https://github.com/facebook/zstd.git
