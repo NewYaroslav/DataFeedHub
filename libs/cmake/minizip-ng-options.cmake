@@ -1,7 +1,6 @@
-# minizip-ng-config.cmake
+# minizip-ng-options.cmake
 # Конфигурация для сборки minizip-ng с встроенной zlib-ng и базовой функциональностью
 
-# minizip-ng-config.cmake
 set(MZ_INSTALL OFF CACHE BOOL "Disable installation" FORCE)
 set(MZ_FETCH_LIBS OFF CACHE BOOL "Do not fetch external libs" FORCE)
 set(MZ_FORCE_ZLIB ON CACHE BOOL "Use externally provided zlib" FORCE)

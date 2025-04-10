@@ -5,7 +5,7 @@
 #include <vector>
 #include <random>
 #include <cassert>
-#include <DataFeedHub/src/compression/utils/frequency_encoding.hpp>
+#include <DataFeedHub/compression.hpp>
 
 /// \brief Generates a random array of uint32_t.
 /// \param size Number of elements to generate.

@@ -74,6 +74,15 @@ namespace dfh::utils {
         };
         return tolerance[digits];
     }
+	
+	/// \brief Calculates number of decimal digits from a step string like "0.001".
+	/// \param step Precision step as a string (e.g., "0.01").
+	/// \return Number of decimal digits.
+	int count_decimal_digits(const std::string& step) {
+		auto pos = step.find('.');
+		if (pos == std::string::npos) return 0;
+		return step.size() - pos - 1;
+	}
 
     /// \brief Converts floating-point value to fixed-point integer representation.
     /// \details Uses scaling factor to preserve decimal precision. For optimal results,

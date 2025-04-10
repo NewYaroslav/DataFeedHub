@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.18)
 project(LibsProject LANGUAGES C CXX)
 
 set(LIBS_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR}/cmake)
-include(${LIBS_CMAKE_DIR}/move_static_output.cmake)
-include(${LIBS_CMAKE_DIR}/install_headers.cmake)
-include(${LIBS_CMAKE_DIR}/install_static_libs.cmake)
-include(${LIBS_CMAKE_DIR}/install_runtime_dlls.cmake)
+include(${LIBS_CMAKE_DIR}/move-static-output.cmake)
+include(${LIBS_CMAKE_DIR}/install-headers.cmake)
+include(${LIBS_CMAKE_DIR}/install-static-libs.cmake)
+include(${LIBS_CMAKE_DIR}/install-runtime-dlls.cmake)
 
 # zlib
 # add_subdirectory(zlib) # соберётся как zlibstatic
@@ -13,7 +13,7 @@ include(${LIBS_CMAKE_DIR}/install_runtime_dlls.cmake)
 # install_headers_to_include(zlib ${CMAKE_CURRENT_LIST_DIR}/zlib)
 
 # zlib-ng
-include(${LIBS_CMAKE_DIR}/zlib-ng-config.cmake)
+include(${LIBS_CMAKE_DIR}/zlib-ng-options.cmake)
 add_subdirectory(zlib-ng)
 move_static_output(zlibstatic)
 install_headers_to_include("." ${CMAKE_BINARY_DIR}/zlib-ng)
@@ -37,7 +37,7 @@ set(ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIRS} CACHE INTERNAL "")
 set(ZLIB_LIBRARY ${ZLIB_LIBRARIES} CACHE INTERNAL "")
 
 # minizip-ng
-include(${LIBS_CMAKE_DIR}/minizip-ng-config.cmake)
+include(${LIBS_CMAKE_DIR}/minizip-ng-options.cmake)
 add_subdirectory(minizip-ng)
 target_link_libraries(minizip PRIVATE zlibstatic)
 move_static_output(minizip)

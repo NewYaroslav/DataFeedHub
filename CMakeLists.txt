@@ -21,11 +21,11 @@ set(PROJECT_DEFINES
 
 set(PROJECT_LIBS
     mdbx
-    zlibstatic
     zstd
     vbyte
     simdcomp
     minizip
+	z
     ntdll
     bcrypt
 )

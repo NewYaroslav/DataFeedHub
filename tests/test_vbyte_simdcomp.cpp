@@ -1,10 +1,11 @@
+/// \file test_vbyte_simdcomp.cpp
+/// \brief 
+
 #include <iostream>
-#include <vector>
 #include <random>
 #include <cassert>
 #include <cstdlib>
-#include <DataFeedHub/src/utils/vbyte.hpp>
-#include <DataFeedHub/src/utils/simdcomp.hpp>
+#include <DataFeedHub/utils.hpp>
 
 template<class T>
 bool arrays_equal(const T& original, const T& decoded) {

@@ -5,8 +5,14 @@
 /// \file dfh.hpp
 /// \brief
 
-#include "structures.hpp"
+//------------------------------------------------------------------------------
+// Core Module Headers
+//------------------------------------------------------------------------------
+
+#include "data.hpp"
 #include "utils.hpp"
+#include "transform.hpp"
 #include "compression.hpp"
+#include "storage.hpp"
 
 #endif // _DTH_HPP_INCLUDED

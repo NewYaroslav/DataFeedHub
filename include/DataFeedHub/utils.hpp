@@ -35,9 +35,9 @@
 //------------------------------------------------------------------------------
 
 #include <nlohmann/json.hpp>
-#include <simdcomp/simdcomp.h>
-#include <libvbyte/vbyte.h>
-#include <fast_double_parser/fast_double_parser.h>
+#include <simdcomp.h>
+#include <vbyte.h>
+#include <fast_double_parser.h>
 #include <time_shield_cpp/time_shield.hpp>
 
 
