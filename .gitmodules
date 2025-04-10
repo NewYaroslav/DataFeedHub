@@ -28,9 +28,6 @@
 [submodule "libs/googletest"]
 	path = libs/googletest
 	url = https://github.com/google/googletest.git
-[submodule "libs/lmdb"]
-	path = libs/lmdb
-	url = https://github.com/LMDB/lmdb.git
 [submodule "libs/libmdbx"]
 	path = libs/libmdbx
 	url = https://github.com/erthink/libmdbx.git
