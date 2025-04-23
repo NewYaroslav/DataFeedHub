@@ -10,15 +10,25 @@ set(PROJECT_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/tests
 )
 
+# Подключаем файлы статичных библиотек
 set(PROJECT_LIBRARY_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/build-libs/lib
     ${CMAKE_CURRENT_SOURCE_DIR}/build-libs/bin
 )
 
+# Подключаем dll файлы
+set(PROJECT_DLL_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/build-libs/bin
+)
+
+file(GLOB DLL_FILES "${PROJECT_DLL_DIR}/*.dll")
+
+# Устанавливаем макросы для сборки
 set(PROJECT_DEFINES
     SQLITE_THREADSAFE=1
 )
 
+# Подключаем необходимые библиотеки
 set(PROJECT_LIBS
     mdbx
     zstd
@@ -39,7 +49,7 @@ file(GLOB_RECURSE PROJECT_HEADERS
 # Создаём виртуальную цель для заголовков, чтобы отображались в IDE
 add_custom_target(project_headers SOURCES ${PROJECT_HEADERS})
 
-# Найдём все .cpp файлы в tests/
+# Находим все .cpp файлы в tests/
 file(GLOB TEST_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} tests/*.cpp)
 
 # Для каждого создаём отдельную цель
@@ -54,5 +64,14 @@ foreach(test_src ${TEST_SOURCES})
     target_link_libraries(${test_name} PRIVATE ${PROJECT_LIBS})
 	
 	# Добавляем заголовочные файлы в IDE-представление цели
+	set_source_files_properties(${PROJECT_HEADERS} PROPERTIES HEADER_FILE_ONLY ON)
     target_sources(${test_name} PRIVATE ${PROJECT_HEADERS})
+	
+	foreach(dll ${DLL_FILES})
+        add_custom_command(TARGET ${test_name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${dll}"
+            "$<TARGET_FILE_DIR:${test_name}>"
+        )
+    endforeach()
 endforeach()

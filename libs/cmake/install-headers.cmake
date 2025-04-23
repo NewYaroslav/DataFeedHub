@@ -6,6 +6,7 @@ function(install_headers_to_include target_name include_dir)
     file(GLOB_RECURSE headers
         "${include_dir}/*.h"
         "${include_dir}/*.hpp"
+		"${include_dir}/*.ipp"
         "${include_dir}/*.inl"
     )
 

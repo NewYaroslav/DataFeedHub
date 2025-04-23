@@ -72,7 +72,7 @@ install_headers_to_include("." ${CMAKE_BINARY_DIR}/sqlite)
 # install_runtime_dlls_to_bin (${CMAKE_CURRENT_LIST_DIR}/curl-8.11.0_1-win64-mingw/bin)
 
 # header-only
-install_headers_to_include(time_shield_cpp ${CMAKE_CURRENT_LIST_DIR}/time-shield-cpp/include/time_shield_cpp)
+install_headers_to_include("."             ${CMAKE_CURRENT_LIST_DIR}/time-shield-cpp/include/time_shield_cpp)
 # install_headers_to_include(log-it          ${CMAKE_CURRENT_LIST_DIR}/log-it-cpp/include/log-it)
 # install_headers_to_include("."             ${CMAKE_CURRENT_LIST_DIR}/asio/asio/include)
 install_headers_to_include(gzip            ${CMAKE_CURRENT_LIST_DIR}/gzip-hpp/include/gzip)

@@ -179,20 +179,20 @@ namespace dfh {
     /// \brief Slippage tolerance modes.
     enum class SlippageType {
         UNKNOWN = 0,
-        ABSOLUTE, ///< Defined in ticks or currency units
-        PERCENT   ///< Percentage slippage
+        ABSOLUTE_VALUE, ///< Slippage defined in ticks or currency units
+        PERCENT_VALUE   ///< Slippage defined as a percentage of price
     };
 
     inline const std::string& to_str(SlippageType value) noexcept {
-        static const std::vector<std::string> str_data = {"UNKNOWN", "ABSOLUTE", "PERCENT"};
+        static const std::vector<std::string> str_data = {"UNKNOWN", "ABSOLUTE_VALUE", "PERCENT_VALUE"};
         return str_data[static_cast<size_t>(value)];
     }
 
     inline bool to_enum(const std::string& str, SlippageType& value) noexcept {
         static const std::unordered_map<std::string, SlippageType> str_data = {
-            {"UNKNOWN", SlippageType::UNKNOWN},
-			{"ABSOLUTE", SlippageType::ABSOLUTE},
-            {"PERCENT", SlippageType::PERCENT}
+            {"UNKNOWN",        SlippageType::UNKNOWN},
+			{"ABSOLUTE_VALUE", SlippageType::ABSOLUTE_VALUE},
+            {"PERCENT_VALUE",  SlippageType::PERCENT_VALUE}
         };
         auto it = str_data.find(str);
         if (it != str_data.end()) { value = it->second; return true; }

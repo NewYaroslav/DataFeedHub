@@ -18,7 +18,7 @@
 // Third-party libraries
 //------------------------------------------------------------------------------
 
-#include <time_shield_cpp/time_shield.hpp>
+#include <time_shield.hpp>
 
 //------------------------------------------------------------------------------
 // Internal core data definitions

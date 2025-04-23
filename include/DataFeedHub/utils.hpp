@@ -38,7 +38,7 @@
 #include <simdcomp.h>
 #include <vbyte.h>
 #include <fast_double_parser.h>
-#include <time_shield_cpp/time_shield.hpp>
+#include <time_shield.hpp>
 
 
 //------------------------------------------------------------------------------
