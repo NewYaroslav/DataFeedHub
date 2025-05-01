@@ -9,7 +9,6 @@
 
 #include "bars/bar_gap_filler.hpp"
 #include "bars/resample_market_bars.hpp"
-#include "bars/bar_crop.hpp"
 #include "bars/split_bars.hpp"
 
 #endif // _DFH_TRANSFORM_BARS_HPP_INCLUDED

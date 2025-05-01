@@ -15,9 +15,9 @@ namespace dfh::transform {
     /// \return A new vector of MarketBar objects with gaps filled.
     std::vector<MarketBar> fill_missing_bars(
             const std::vector<MarketBar>& bars,
-            uint64_t bar_interval_ms,
-            uint64_t start_time_ms,
-            uint64_t end_time_ms) {
+            int64_t bar_interval_ms,
+            int64_t start_time_ms,
+            int64_t end_time_ms) {
         std::vector<MarketBar> result;
         if (bars.empty()) return result;
 
@@ -25,7 +25,7 @@ namespace dfh::transform {
         result.reserve(estimated_size);
 
         size_t index = 0;
-        uint64_t expected_time = start_time_ms;
+        int64_t expected_time = start_time_ms;
         uint32_t last_spread = bars.front().spread;
 
         while (expected_time < end_time_ms) {
@@ -57,14 +57,14 @@ namespace dfh::transform {
     /// \param end_time_ms End time of the range (exclusive) in milliseconds.
     void fill_missing_bars_inplace(
             std::vector<MarketBar>& bars,
-            uint64_t bar_interval_ms,
-            uint64_t start_time_ms,
-            uint64_t end_time_ms) {
+            int64_t bar_interval_ms,
+            int64_t start_time_ms,
+            int64_t end_time_ms) {
         if (bars.empty()) return;
         std::vector<MarketBar> missing;
 
         // Fill missing bars before the first bar
-        uint64_t expected_time = start_time_ms;
+        int64_t expected_time = start_time_ms;
         const MarketBar& first = bars.front();
         while (expected_time < first.time_ms) {
             MarketBar filler;
@@ -82,7 +82,7 @@ namespace dfh::transform {
 
         // Fill internal gaps
         for (size_t i = 1; i < bars.size(); ++i) {
-            uint64_t expected = bars[i - 1].time_ms + bar_interval_ms;
+            int64_t expected = bars[i - 1].time_ms + bar_interval_ms;
             while (expected < bars[i].time_ms) {
                 MarketBar filler;
                 filler.time_ms = expected;
@@ -117,8 +117,8 @@ namespace dfh::transform {
     inline std::vector<MarketBar> fill_missing_bars(
             const std::vector<MarketBar>& bars,
             TimeFrame time_frame,
-            uint64_t start_time_ms,
-            uint64_t end_time_ms) {
+            int64_t start_time_ms,
+            int64_t end_time_ms) {
         return fill_missing_bars(bars, time_shield::sec_to_ms(static_cast<uint64_t>(time_frame)), start_time_ms, end_time_ms);
     }
 
@@ -131,9 +131,9 @@ namespace dfh::transform {
     inline void fill_missing_bars_inplace(
             std::vector<MarketBar>& bars,
             TimeFrame time_frame,
-            uint64_t start_time_ms,
-            uint64_t end_time_ms) {
-        fill_missing_bars_inplace(bars, time_shield::sec_to_ms(static_cast<uint64_t>(time_frame)), start_time_ms, end_time_ms);
+            int64_t start_time_ms,
+            int64_t end_time_ms) {
+        fill_missing_bars_inplace(bars, time_shield::sec_to_ms(static_cast<int64_t>(time_frame)), start_time_ms, end_time_ms);
     }
 
 } // namespace dfh::transform

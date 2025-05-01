@@ -223,10 +223,10 @@ namespace dfh::storage {
             }
 
             if (start_time_ms > (segment_start * duration_ms)) {
-                dfh::transform::crop_bars_before(bars, start_time_ms);
+                dfh::transform::crop_before(bars, start_time_ms);
             }
             if (end_time_ms < ((segment_stop * duration_ms) + duration_ms)) {
-                dfh::transform::crop_bars_after(bars, end_time_ms);
+                dfh::transform::crop_after(bars, end_time_ms);
             }
             return success;
         }

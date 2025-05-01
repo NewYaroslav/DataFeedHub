@@ -31,8 +31,11 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include <unordered_map>
 #include <vector>
+#include <deque>
+#include <list>
+#include <map>
+#include <unordered_map>
 
 //------------------------------------------------------------------------------
 // Third-party libraries
@@ -45,6 +48,7 @@
 //------------------------------------------------------------------------------
 
 #include "utils/string_utils.hpp"
+#include "utils/enum_utils.hpp"
 
 //------------------------------------------------------------------------------
 // Core data structures

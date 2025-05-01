@@ -60,6 +60,7 @@
 #include "utils/simdcomp.hpp"
 #include "utils/sse_double_int64_utils.hpp"
 #include "utils/string_utils.hpp"
+#include "utils/enum_utils.hpp"
 #include "utils/symbol_key_utils.hpp"
 #include "utils/vbyte.hpp"
 #include "utils/zip_utils.hpp"
