@@ -44,98 +44,93 @@ namespace dfh {
 //------------------------------------------------------------------------------
 
     /// \brief Enables bitwise AND for TickUpdateFlags.
-    inline TickUpdateFlags operator&(TickUpdateFlags a, TickUpdateFlags b) {
-        return static_cast<TickUpdateFlags>(static_cast<uint64_t>(a) & static_cast<uint64_t>(b));
+    [[nodiscard]] constexpr TickUpdateFlags operator&(TickUpdateFlags a, TickUpdateFlags b) noexcept {
+        return static_cast<TickUpdateFlags>(static_cast<std::uint64_t>(a) & static_cast<std::uint64_t>(b));
     }
 
     /// \brief Enables bitwise OR for TickUpdateFlags.
-    inline TickUpdateFlags operator|(TickUpdateFlags a, TickUpdateFlags b) {
-        return static_cast<TickUpdateFlags>(static_cast<uint64_t>(a) | static_cast<uint64_t>(b));
+    [[nodiscard]] constexpr TickUpdateFlags operator|(TickUpdateFlags a, TickUpdateFlags b) noexcept {
+        return static_cast<TickUpdateFlags>(static_cast<std::uint64_t>(a) | static_cast<std::uint64_t>(b));
     }
 
     /// \brief Enables bitwise NOT for TickUpdateFlags.
-    inline TickUpdateFlags operator~(TickUpdateFlags a) {
-        return static_cast<TickUpdateFlags>(~static_cast<uint64_t>(a));
+    [[nodiscard]] constexpr TickUpdateFlags operator~(TickUpdateFlags a) noexcept {
+        return static_cast<TickUpdateFlags>(~static_cast<std::uint64_t>(a));
     }
 
     /// \brief Enables |= operator for TickUpdateFlags.
-    inline TickUpdateFlags& operator|=(TickUpdateFlags& a, TickUpdateFlags b) {
+    constexpr TickUpdateFlags& operator|=(TickUpdateFlags& a, TickUpdateFlags b) noexcept {
         a = a | b;
         return a;
     }
 
     /// \brief Enables &= operator for TickUpdateFlags.
-    inline TickUpdateFlags& operator&=(TickUpdateFlags& a, TickUpdateFlags b) {
+    constexpr TickUpdateFlags& operator&=(TickUpdateFlags& a, TickUpdateFlags b) noexcept {
         a = a & b;
         return a;
     }
 
-    /// \brief Enables comparison with zero for TickUpdateFlags.
-    inline bool operator!=(TickUpdateFlags a, int b) {
-        return static_cast<uint64_t>(a) != static_cast<uint64_t>(b);
-    }
-
     /// \brief Enables bitwise right shift for TickUpdateFlags
-    inline TickUpdateFlags operator>>(TickUpdateFlags a, size_t shift) {
-        return static_cast<TickUpdateFlags>(static_cast<uint64_t>(a) >> shift);
+    [[nodiscard]] constexpr TickUpdateFlags operator>>(TickUpdateFlags a, std::size_t shift) noexcept {
+        return static_cast<TickUpdateFlags>(static_cast<std::uint64_t>(a) >> shift);
     }
 
     /// \brief Enables bitwise left shift for TickUpdateFlags
-    inline TickUpdateFlags operator<<(TickUpdateFlags a, size_t shift) {
-        return static_cast<TickUpdateFlags>(static_cast<uint64_t>(a) << shift);
+    [[nodiscard]] constexpr TickUpdateFlags operator<<(TickUpdateFlags a, std::size_t shift) noexcept {
+        return static_cast<TickUpdateFlags>(static_cast<std::uint64_t>(a) << shift);
     }
 
     /// \brief Enables bitwise AND assignment for TickUpdateFlags.
-    inline TickUpdateFlags& operator&=(TickUpdateFlags& a, uint64_t b) {
-        a = static_cast<TickUpdateFlags>(static_cast<uint64_t>(a) & b);
+    constexpr TickUpdateFlags& operator&=(TickUpdateFlags& a, std::uint64_t b) noexcept {
+        a = static_cast<TickUpdateFlags>(static_cast<std::uint64_t>(a) & b);
         return a;
     }
 
     /// \brief Enables bitwise OR assignment for TickUpdateFlags.
-    inline TickUpdateFlags& operator|=(TickUpdateFlags& a, uint64_t b) {
-        a = static_cast<TickUpdateFlags>(static_cast<uint64_t>(a) | b);
+    constexpr TickUpdateFlags& operator|=(TickUpdateFlags& a, std::uint64_t b) noexcept {
+        a = static_cast<TickUpdateFlags>(static_cast<std::uint64_t>(a) | b);
         return a;
     }
 
     /// \brief Enables bitwise AND for TickUpdateFlags.
-    inline TickUpdateFlags operator&(TickUpdateFlags a, uint64_t b) {
-        return static_cast<TickUpdateFlags>(static_cast<uint64_t>(a) & b);
+    [[nodiscard]] constexpr TickUpdateFlags operator&(TickUpdateFlags a, std::uint64_t b) noexcept {
+        return static_cast<TickUpdateFlags>(static_cast<std::uint64_t>(a) & b);
     }
 
     /// \brief Enables bitwise OR for TickUpdateFlags.
-    inline TickUpdateFlags operator|(TickUpdateFlags a, uint64_t b) {
-        return static_cast<TickUpdateFlags>(static_cast<uint64_t>(a) | b);
+    [[nodiscard]] constexpr TickUpdateFlags operator|(TickUpdateFlags a, std::uint64_t b) noexcept {
+        return static_cast<TickUpdateFlags>(static_cast<std::uint64_t>(a) | b);
     }
 
     /// \brief Checks if a specific flag is set in a bitmask.
     /// \param flags Bitmask of flags.
     /// \param flag Flag to check.
     /// \return True if the flag is set.
-    inline bool has_flag(uint64_t flags, TickUpdateFlags flag) {
-        return (flags & static_cast<uint64_t>(flag)) != 0;
+    [[nodiscard]] constexpr bool has_flag(std::uint64_t flags, TickUpdateFlags flag) noexcept {
+        return (flags & static_cast<std::uint64_t>(flag)) != 0U;
     }
 
     /// \brief Sets a specific flag in a bitmask in-place.
     /// \param flags Bitmask to modify.
     /// \param flag Flag to set.
-    inline void set_flag_in_place(uint64_t& flags, TickUpdateFlags flag) {
-        flags |= static_cast<uint64_t>(flag);
+    constexpr void set_flag_in_place(std::uint64_t& flags, TickUpdateFlags flag) noexcept {
+        flags |= static_cast<std::uint64_t>(flag);
     }
 
     /// \brief Returns a bitmask with a flag set.
     /// \param flags Original bitmask.
     /// \param flag Flag to set.
     /// \return New bitmask with the flag set.
-    inline uint64_t set_flag(uint64_t flags, TickUpdateFlags flag) {
-        return flags | static_cast<uint64_t>(flag);
+    [[nodiscard]] constexpr std::uint64_t set_flag(std::uint64_t flags, TickUpdateFlags flag) noexcept {
+        return flags | static_cast<std::uint64_t>(flag);
     }
 
     /// \brief Clears a specific flag in a bitmask.
     /// \param flags Bitmask to modify.
     /// \param flag Flag to clear.
     /// \return New bitmask with the flag cleared.
-    inline uint64_t clear_flag(uint64_t flags, TickUpdateFlags flag) {
-        return flags & ~static_cast<uint64_t>(flag);
+    [[nodiscard]] constexpr std::uint64_t clear_flag(std::uint64_t flags, TickUpdateFlags flag) noexcept {
+        return flags & ~static_cast<std::uint64_t>(flag);
     }
 
 //------------------------------------------------------------------------------
@@ -143,35 +138,35 @@ namespace dfh {
 //------------------------------------------------------------------------------
 
     /// \brief Enables bitwise OR for TickStorageFlags.
-    inline TickStorageFlags operator|(TickStorageFlags a, TickStorageFlags b) {
-        return static_cast<TickStorageFlags>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+    [[nodiscard]] constexpr TickStorageFlags operator|(TickStorageFlags a, TickStorageFlags b) noexcept {
+        return static_cast<TickStorageFlags>(static_cast<std::uint8_t>(a) | static_cast<std::uint8_t>(b));
     }
 
     /// \brief Enables bitwise AND for TickStorageFlags.
-    inline TickStorageFlags operator&(TickStorageFlags a, TickStorageFlags b) {
-        return static_cast<TickStorageFlags>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+    [[nodiscard]] constexpr TickStorageFlags operator&(TickStorageFlags a, TickStorageFlags b) noexcept {
+        return static_cast<TickStorageFlags>(static_cast<std::uint8_t>(a) & static_cast<std::uint8_t>(b));
     }
 
     /// \brief Enables bitwise NOT for TickStorageFlags.
-    inline TickStorageFlags operator~(TickStorageFlags a) {
-        return static_cast<TickStorageFlags>(~static_cast<uint8_t>(a));
+    [[nodiscard]] constexpr TickStorageFlags operator~(TickStorageFlags a) noexcept {
+        return static_cast<TickStorageFlags>(~static_cast<std::uint8_t>(a));
     }
 
     /// \brief Enables |= operator for TickStorageFlags.
-    inline TickStorageFlags& operator|=(TickStorageFlags& a, TickStorageFlags b) {
+    constexpr TickStorageFlags& operator|=(TickStorageFlags& a, TickStorageFlags b) noexcept {
         a = a | b;
         return a;
     }
 
     /// \brief Enables &= operator for TickStorageFlags.
-    inline TickStorageFlags& operator&=(TickStorageFlags& a, TickStorageFlags b) {
+    constexpr TickStorageFlags& operator&=(TickStorageFlags& a, TickStorageFlags b) noexcept {
         a = a & b;
         return a;
     }
 
-    /// \brief Enables comparison with zero for TickStorageFlags.
-    inline bool operator!=(TickStorageFlags a, int b) {
-        return static_cast<uint8_t>(a) != static_cast<uint8_t>(b);
+    /// \brief Checks if a TickStorageFlags mask contains a specific flag.
+    [[nodiscard]] constexpr bool has_flag(TickStorageFlags flags, TickStorageFlags flag) noexcept {
+        return (flags & flag) != TickStorageFlags::NONE;
     }
 
 } // namespace dfh

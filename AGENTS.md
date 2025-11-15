@@ -23,6 +23,29 @@ type(scope): short message
 - Boolean variables should start with `is`, `has`, `use`, `enable` or with `m_is_`, `m_has_`, etc. for class fields.
 - Do not use prefixes `b_`, `n_`, `f_`.
 
+### Domain DTO Naming (all domains)
+
+- Reuse the tick-domain naming template for every DTO-oriented domain:
+  - **DTO types:** `<Base><Suffix><Kind>`, where `Kind` is the domain noun (`Tick`, `Bar`, `Quote`, `Order`, etc.), `Base` is the entity (`Value`, `Market`, `Funding`), and `Suffix` is an optional short modifier (`Vol`, `L1`, `Agg`). Examples: `ValueTick`, `FundingRateBar`, `OrderBookL2Snapshot`.
+  - **Containers / algorithms:** `<Kind><Something>` to emphasize operations over that domain (e.g., `TickSequence`, `BarCompressorV2`, `OrderSerializer`).
+  - **Span aliases:** `<TypeName>Span` for zero-copy ranges, such as `ValueTickSpan`, `PriceBarSpan`, `OrderBookSnapshotSpan`.
+- For the tick domain, additional rationale and examples remain in `include/DataFeedHub/data/ticks/README-RU.md`; other domains should mirror this structure in their own READMEs when new DTO families appear.
+
+### Constants and compile-time flags
+
+- **Preprocessor macros / feature toggles** use `UPPER_SNAKE_CASE` and usually include a project prefix, e.g., `DFH_USE_JSON`, `DFH_USE_NLOHMANN_JSON`, `DFH_STORAGE_ENABLE_MDBX`.
+- **`static constexpr` / `const` data inside classes and structs** also use `UPPER_SNAKE_CASE`, e.g., `TRADE_SIDE_BITS`, `DEFAULT_CAPACITY`.
+- When referencing those `static constexpr` / `const` members (or namespace-level constants), always qualify them with their scope (`TradeTick::TRADE_SIDE_BITS`, `ticks::TickCodecConfig::DEFAULT_CAPACITY`) to keep usage distinguishable from macros.
+- **Regular data members** keep `snake_case` names such as `price`, `time_ms`, `id_and_side`.
+- **Enum constants** use `CamelCase` (`Unknown`, `Buy`, `Sell`).
+
+## Feature toggles
+
+- `DFH_USE_JSON` enables JSON helpers across the code base. When this macro is not defined the library never includes any JSON headers and the serialization helpers are not compiled.
+- `DFH_USE_NLOHMANN_JSON` enables adapters built on top of [nlohmann/json](https://github.com/nlohmann/json). Define this macro together with `DFH_USE_JSON` to compile the `to_json`/`from_json` overloads and ADL serializers.
+- `DFH_USE_SIMDJSON` reserves hooks for simdjson-based readers/writers. Combine it with `DFH_USE_JSON` when integrating the fast DOM/on-demand parsers. Both JSON backends may coexist when desired.
+- Every domain that exposes DTOs must wrap its JSON serialization/deserialization helpers with these macros so that downstream projects can opt-in to JSON support explicitly.
+
 ## Documentation / Doxygen Style Guide
 
 Applies to all C++11/14/17 sources in this repository.
@@ -188,3 +211,7 @@ When adding new features, align them with the relevant domain layer and keep bou
 ## Umbrella headers
 
 To speed up compilation of this header-only library, create umbrella headers for each domain area (e.g., `ticks.hpp` gathers required dependencies for all tick-related structures). Prefer including the umbrella header at call sites instead of individual low-level headers to reduce repetitive include graphs.
+
+- When a domain is expected to be consumed **only** through its umbrella header, move every transitive dependency (STL headers, cross-domain enums, local helpers, etc.) into the umbrella header. Leaf headers inside that domain should avoid `#include` statements entirely so that the umbrella controls ordering and compilation cost.
+- Composite headers (where a single file defines a class along with its helpers, inline implementation, or nested utilities) may still include neighboring files from the same domain, because that header already acts as a small umbrella for its implementation details.
+- When in doubt, default to “umbrella owns dependencies”: assume a leaf header is not meant to be included directly unless explicitly documented otherwise.
