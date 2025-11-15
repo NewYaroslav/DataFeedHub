@@ -3,28 +3,55 @@
 #define _DFH_DATA_QUOTE_TICK_HPP_INCLUDED
 
 /// \file QuoteTick.hpp
-/// \brief Defines the QuoteTick structure for tick data without volume
+/// \brief Defines the QuoteTick structure for tick data without volume.
 
 namespace dfh {
 
-    /// \brief Simplified tick structure without volume
+    /// \struct QuoteTick
+    /// \brief Simplified quote tick that stores bid/ask prices and timestamps.
     struct QuoteTick {
-        double ask;           ///< Ask price
-        double bid;           ///< Bid price
-        uint64_t time_ms;     ///< Tick timestamp in milliseconds
+        double ask{0.0};           ///< Ask price.
+        double bid{0.0};           ///< Bid price.
+        std::uint64_t time_ms{0};  ///< Tick timestamp in milliseconds.
+        std::uint64_t received_ms{0}; ///< When the quote was received (ms since epoch).
 
-        /// \brief Constructor to initialize the tick
-        /// \param a Ask price
-        /// \param b Bid price
-        /// \param ts Tick timestamp in milliseconds
-        QuoteTick(double a, double b, uint64_t ts)
-            : ask(a), bid(b), time_ms(ts), received_ms(rt) {}
+        /// \brief Constructs a quote tick with both timestamps.
+        /// \param a Ask price.
+        /// \param b Bid price.
+        /// \param ts Exchange timestamp in milliseconds.
+        /// \param recv_ms Receive timestamp in milliseconds (0 if unknown).
+        constexpr QuoteTick(double a, double b, std::uint64_t ts, std::uint64_t recv_ms = 0) noexcept
+            : ask(a), bid(b), time_ms(ts), received_ms(recv_ms) {}
     };
-	
-	static_assert(std::is_standard_layout<QuoteTick>::value,
-              "QuoteTick must be standard-layout");
-	static_assert(sizeof(QuoteTick) == 2 * sizeof(double) + sizeof(std::uint64_t),
-              "QuoteTick has unexpected size");
+
+    static_assert(std::is_trivially_copyable_v<QuoteTick>,
+                  "QuoteTick must remain trivially copyable for zero-copy transports.");
+    static_assert(sizeof(QuoteTick) == 2 * sizeof(double) + 2 * sizeof(std::uint64_t),
+                  "QuoteTick layout changed unexpectedly.");
+
+#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
+
+    /// \brief Serializes QuoteTick to JSON.
+    /// \param j JSON destination.
+    /// \param tick Tick to serialize.
+    inline void to_json(nlohmann::json& j, const QuoteTick& tick) {
+        j = nlohmann::json{{"ask", tick.ask}, {"bid", tick.bid}, {"time_ms", tick.time_ms}};
+        if (tick.received_ms != 0) {
+            j["received_ms"] = tick.received_ms;
+        }
+    }
+
+    /// \brief Deserializes QuoteTick from JSON.
+    /// \param j JSON source.
+    /// \param tick Tick to populate.
+    inline void from_json(const nlohmann::json& j, QuoteTick& tick) {
+        j.at("ask").get_to(tick.ask);
+        j.at("bid").get_to(tick.bid);
+        j.at("time_ms").get_to(tick.time_ms);
+        tick.received_ms = j.value("received_ms", std::uint64_t{0});
+    }
+
+#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 } // namespace dfh
 

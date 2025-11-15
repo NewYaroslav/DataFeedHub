@@ -3,56 +3,55 @@
 #define _DFH_DATA_MARKET_TICK_HPP_INCLUDED
 
 /// \file MarketTick.hpp
-/// \brief Defines the MarketTick structure and TickUpdateFlags for detailed market ticks.
+/// \brief Defines the MarketTick structure and helpers for JSON serialization.
 
 namespace dfh {
 
     /// \struct MarketTick
     /// \brief Represents a single market tick with time, price, volume, and update flags.
     struct MarketTick {
-        uint64_t time_ms;        ///< Timestamp of the tick (ms since Unix epoch)
-        uint64_t received_ms;    ///< Timestamp when the tick was received (optional)
-        double ask;              ///< Best ask price
-        double bid;              ///< Best bid price
-        double last;             ///< Last trade price
-        double volume;           ///< Trade volume in base asset (optional)
-        TickUpdateFlags flags;   ///< Flags indicating which fields were updated (optional)
+        std::uint64_t time_ms{0};      ///< Timestamp of the tick (ms since Unix epoch).
+        std::uint64_t received_ms{0};  ///< Timestamp when the tick was received (ms since Unix epoch).
+        double ask{0.0};               ///< Best ask price.
+        double bid{0.0};               ///< Best bid price.
+        double last{0.0};              ///< Last trade price.
+        double volume{0.0};            ///< Trade volume in base asset (optional).
+        TickUpdateFlags flags{TickUpdateFlags::NONE}; ///< Flags indicating which fields were updated.
 
-        /// \brief Default constructor. Initializes all fields to zero or NONE.
-        MarketTick()
-            : time_ms(0), received_ms(0),
-              ask(0.0), bid(0.0), last(0.0), volume(0.0),
-              flags(TickUpdateFlags::NONE) {}
+        /// \brief Default constructor.
+        constexpr MarketTick() noexcept = default;
 
-		/// \brief Full constructor for MarketTick.
-		/// \param time_ms Timestamp of the tick (in ms since Unix epoch).
-		/// \param received_ms Timestamp when the tick was received (optional, ms since Unix epoch).
-		/// \param ask Best ask price at the time of the tick.
-		/// \param bid Best bid price at the time of the tick.
-		/// \param last Last trade price at the time of the tick.
-		/// \param volume Trade volume in base asset units (optional).
-		/// \param flags Update flags indicating which fields were changed.
-        MarketTick(
-            uint64_t time_ms,
-            uint64_t received_ms,
-            double ask,
-            double bid,
-            double last,
-            double volume,
-            TickUpdateFlags flags)
-            : time_ms(time_ms), received_ms(received_ms),
-              ask(ask), bid(bid), last(last), volume(volume), flags(flags) {}
+        /// \brief Full constructor for MarketTick.
+        /// \param time Timestamp of the tick (in ms since Unix epoch).
+        /// \param received Timestamp when the tick was received (ms since Unix epoch).
+        /// \param ask_price Best ask price at the time of the tick.
+        /// \param bid_price Best bid price at the time of the tick.
+        /// \param last_price Last trade price at the time of the tick.
+        /// \param volume_value Trade volume in base asset units.
+        /// \param flag_mask Update flags indicating which fields were changed.
+        constexpr MarketTick(std::uint64_t time,
+                             std::uint64_t received,
+                             double ask_price,
+                             double bid_price,
+                             double last_price,
+                             double volume_value,
+                             TickUpdateFlags flag_mask) noexcept
+            : time_ms(time)
+            , received_ms(received)
+            , ask(ask_price)
+            , bid(bid_price)
+            , last(last_price)
+            , volume(volume_value)
+            , flags(flag_mask) {}
 
         /// \brief Sets a specific flag in the tick's update flags.
-		/// \param flag The flag to set.
-        void set_flag(TickUpdateFlags flag) {
-            flags |= flag;
-        }
+        /// \param flag The flag to set.
+        constexpr void set_flag(TickUpdateFlags flag) noexcept { flags |= flag; }
 
-		/// \brief Conditionally sets or clears a flag in the tick's update flags.
-		/// \param flag The flag to modify.
-		/// \param value True to set the flag, false to clear it.
-        void set_flag(TickUpdateFlags flag, bool value) {
+        /// \brief Conditionally sets or clears a flag in the tick's update flags.
+        /// \param flag The flag to modify.
+        /// \param value True to set the flag, false to clear it.
+        constexpr void set_flag(TickUpdateFlags flag, bool value) noexcept {
             if (value) flags |= flag;
             else flags &= ~flag;
         }
@@ -60,15 +59,20 @@ namespace dfh {
         /// \brief Checks if a specific update flag is set.
         /// \param flag The flag to check.
         /// \return True if the flag is set, false otherwise.
-        bool has_flag(TickUpdateFlags flag) const {
-            return (flags & flag) != 0;
+        [[nodiscard]] constexpr bool has_flag(TickUpdateFlags flag) const noexcept {
+            return (flags & flag) != TickUpdateFlags::NONE;
         }
     };
+
+    static_assert(std::is_trivially_copyable_v<MarketTick>,
+                  "MarketTick must remain trivially copyable for ring buffers.");
+
+#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 
     /// \brief Serializes a MarketTick to JSON.
     /// \param j JSON object to populate.
     /// \param tick MarketTick instance to serialize.
-	/// \details Fields with default values (received_ms=0, volume=0.0, flags=NONE) are omitted to minimize JSON size.
+    /// \details Fields with default values (received_ms=0, volume=0.0, flags=NONE) are omitted.
     inline void to_json(nlohmann::json& j, const MarketTick& tick) {
         j = nlohmann::json{
             {"time_ms", tick.time_ms},
@@ -84,7 +88,7 @@ namespace dfh {
             j["volume"] = tick.volume;
         }
         if (tick.flags != TickUpdateFlags::NONE) {
-            j["flags"] = static_cast<uint64_t>(tick.flags);
+            j["flags"] = static_cast<std::uint64_t>(tick.flags);
         }
     }
 
@@ -97,20 +101,11 @@ namespace dfh {
         j.at("bid").get_to(tick.bid);
         j.at("last").get_to(tick.last);
 
-        if (j.contains("received_ms")) {
-            j.at("received_ms").get_to(tick.received_ms);
-        } else {
-            tick.received_ms = 0;
-        }
-
-        if (j.contains("volume")) {
-            j.at("volume").get_to(tick.volume);
-        } else {
-            tick.volume = 0.0;
-        }
+        tick.received_ms = j.value("received_ms", std::uint64_t{0});
+        tick.volume = j.value("volume", 0.0);
 
         if (j.contains("flags")) {
-            uint64_t raw_flags = 0;
+            std::uint64_t raw_flags = 0;
             j.at("flags").get_to(raw_flags);
             tick.flags = static_cast<TickUpdateFlags>(raw_flags);
         } else {
@@ -118,12 +113,16 @@ namespace dfh {
         }
     }
 
+#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
+
 } // namespace dfh
 
-/// \brief Specializations for serializing containers of MarketTick
+#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
+
+/// \brief Specializations for serializing containers of MarketTick.
 namespace nlohmann {
 
-    template<>
+    template <>
     struct adl_serializer<std::vector<dfh::MarketTick>> {
         static void to_json(json& j, const std::vector<dfh::MarketTick>& vec) {
             j = json::array();
@@ -141,7 +140,7 @@ namespace nlohmann {
         }
     };
 
-    template<>
+    template <>
     struct adl_serializer<std::deque<dfh::MarketTick>> {
         static void to_json(json& j, const std::deque<dfh::MarketTick>& deque_) {
             j = json::array();
@@ -152,13 +151,15 @@ namespace nlohmann {
 
         static void from_json(const json& j, std::deque<dfh::MarketTick>& deque_) {
             deque_.clear();
+            deque_.resize(j.size());
+            std::size_t idx = 0;
             for (const auto& item : j) {
-                deque_.push_back(item.get<dfh::MarketTick>());
+                deque_[idx++] = item.get<dfh::MarketTick>();
             }
         }
     };
 
-    template<>
+    template <>
     struct adl_serializer<std::list<dfh::MarketTick>> {
         static void to_json(json& j, const std::list<dfh::MarketTick>& list_) {
             j = json::array();
@@ -175,7 +176,7 @@ namespace nlohmann {
         }
     };
 
-    template<>
+    template <>
     struct adl_serializer<std::unordered_map<std::string, dfh::MarketTick>> {
         static void to_json(json& j, const std::unordered_map<std::string, dfh::MarketTick>& map_) {
             j = json::object();
@@ -192,7 +193,7 @@ namespace nlohmann {
         }
     };
 
-    template<>
+    template <>
     struct adl_serializer<std::map<std::string, dfh::MarketTick>> {
         static void to_json(json& j, const std::map<std::string, dfh::MarketTick>& map_) {
             j = json::object();
@@ -210,5 +211,7 @@ namespace nlohmann {
     };
 
 } // namespace nlohmann
+
+#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 #endif // _DFH_DATA_MARKET_TICK_HPP_INCLUDED
