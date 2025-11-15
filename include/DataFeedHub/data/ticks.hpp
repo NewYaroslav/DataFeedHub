@@ -5,10 +5,15 @@
 /// \file ticks.hpp
 /// \brief
 
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+
 #include "ticks/enums.hpp"
 #include "ticks/flags.hpp"
 #include "ticks/MarketTick.hpp"
-#include "ticks/SimpleTick.hpp"
+#include "ticks/QuoteTick.hpp"
+#include "ticks/QuoteTickL1.hpp"
 #include "ticks/ValueTick.hpp"
 #include "ticks/SingleTick.hpp"
 #include "ticks/TickSequence.hpp"

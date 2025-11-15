@@ -66,7 +66,7 @@ namespace dfh::storage::mdbx {
             } catch (...) {
                 if (m_env) {
 					int rc = mdbx_env_close(m_env);
-					if (rc != MDBX_SUCCESS) throw MDBXException("Failed to close environment: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc), rc));
+					if (rc != MDBX_SUCCESS) throw MDBXException("Failed to close environment: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 				}
                 m_env = nullptr;
                 throw;
@@ -79,7 +79,7 @@ namespace dfh::storage::mdbx {
             std::lock_guard<std::mutex> locker(m_mdbx_mutex);
             if (m_env) {
 				int rc = mdbx_env_close(m_env);
-				if (rc != MDBX_SUCCESS) throw MDBXException("Failed to close environment: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc), rc));
+				if (rc != MDBX_SUCCESS) throw MDBXException("Failed to close environment: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
 			}
             m_env = nullptr;
         }

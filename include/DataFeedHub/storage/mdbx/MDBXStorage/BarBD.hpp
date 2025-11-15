@@ -35,13 +35,13 @@ namespace dfh::storage::mdbx {
                 std::string name = make_table_name(timeframe_values[i]);
                 int rc = mdbx_dbi_open(txn->handle(), name.c_str(), MDBX_CREATE | MDBX_INTEGERKEY, &m_dbi_bars[i]);
                 if (rc != MDBX_SUCCESS) {
-                    throw MDBXException("Failed to open '" + name + "' database: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc), rc));
+                    throw MDBXException("Failed to open '" + name + "' database: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
                 }
             }
 
             int rc = mdbx_dbi_open(txn->handle(), "bar_metadata", MDBX_CREATE | MDBX_INTEGERKEY, &m_dbi_metadata);
             if (rc != MDBX_SUCCESS) {
-                throw MDBXException("Failed to open 'bar_metadata' database: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc), rc));
+                throw MDBXException("Failed to open 'bar_metadata' database: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
             }
         }
 
@@ -56,7 +56,7 @@ namespace dfh::storage::mdbx {
                 rc |= mdbx_dbi_close(m_connection->env_handle(), m_dbi_metadata);
             }
             if (rc != MDBX_SUCCESS) {
-                throw MDBXException("Failed to close database: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc), rc));
+                throw MDBXException("Failed to close database: (" + std::to_string(rc) + ") " + std::string(mdbx_strerror(rc)), rc);
             }
         }
 
