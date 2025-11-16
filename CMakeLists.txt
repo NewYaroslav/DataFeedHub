@@ -17,7 +17,7 @@ foreach(dep MDBX JSON ZLIB MINIZIP ZSTD)
     set_property(CACHE DFH_DEPS_${dep}_MODE PROPERTY STRINGS INHERIT AUTO SYSTEM BUNDLED)
 endforeach()
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -71,7 +71,7 @@ target_include_directories(DataFeedHub INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tests>
     $<INSTALL_INTERFACE:include>
 )
-target_compile_features(DataFeedHub INTERFACE cxx_std_20)
+target_compile_features(DataFeedHub INTERFACE cxx_std_17)
 
 # ===== Tests =====
 if(DFH_BUILD_TESTS)
@@ -79,7 +79,7 @@ if(DFH_BUILD_TESTS)
 
     add_executable(test_dependencies tests/test_dependencies.cpp)
     target_link_libraries(test_dependencies PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_dependencies PRIVATE cxx_std_20)
+    target_compile_features(test_dependencies PRIVATE cxx_std_17)
     add_test(NAME test_dependencies COMMAND test_dependencies)
 
     if(DFH_BUILD_LEGACY_TESTS)
@@ -91,7 +91,7 @@ if(DFH_BUILD_TESTS)
             endif()
             add_executable(${test_name} "${test_src}")
             target_link_libraries(${test_name} PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-            target_compile_features(${test_name} PRIVATE cxx_std_20)
+            target_compile_features(${test_name} PRIVATE cxx_std_17)
             add_test(NAME ${test_name} COMMAND ${test_name})
         endforeach()
     endif()
