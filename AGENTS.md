@@ -152,6 +152,10 @@ and avoids MinGW-specific runtime crashes.
 
 Prefer this `SerializeScratch`-style approach over `thread_local` STL containers everywhere in the code base.
 
+## Testing standard
+
+- Always configure and run the CMake tests with the C++17 standard (or newer) enabled. Never drop below C++17.
+
 ## Domain-driven design (DDD)
 
 The library is structured using DDD. High-level namespaces map to the domain boundaries:

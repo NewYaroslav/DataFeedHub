@@ -4,6 +4,8 @@
 # Outputs: out_target receives mdbx::mdbx
 # Notes:   Prefers existing targets or system packages before bundling.
 
+include_guard(GLOBAL)
+
 # Resolve libmdbx dependency and return mdbx::mdbx
 # Params:
 # - out_target: variable to receive target name

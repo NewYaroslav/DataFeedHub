@@ -2,6 +2,11 @@
 #ifndef _DFH_UTILS_DYNAMIC_BITSET_HPP_INCLUDED
 #define _DFH_UTILS_DYNAMIC_BITSET_HPP_INCLUDED
 
+#include <algorithm>
+#include <cstdint>
+#include <stdexcept>
+#include <vector>
+
 /// \file DynamicBitset.hpp
 /// \brief Dynamic bitset implementation with optimized operations.
 

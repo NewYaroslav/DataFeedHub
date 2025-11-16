@@ -1,77 +1,98 @@
-# При генерации Code::Blocks проекта с MinGW можно использовать так:
-# cmake -G "CodeBlocks - MinGW Makefiles" -S . -B build-cb
-cmake_minimum_required(VERSION 3.18)
-project(DataFeedHub LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.20)
+project(DataFeedHub LANGUAGES C CXX VERSION 0.1.0)
 
-# Пути к инклудам и библиотекам
-set(PROJECT_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/build-libs/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests
-)
+# ===== Root configuration =====
+if(POLICY CMP0152)
+    cmake_policy(SET CMP0152 NEW)
+endif()
 
-# Подключаем файлы статичных библиотек
-set(PROJECT_LIBRARY_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/build-libs/lib
-    ${CMAKE_CURRENT_SOURCE_DIR}/build-libs/bin
-)
+option(DFH_BUILD_TESTS "Build tests from the tests/ folder" ON)
+option(DFH_BUILD_LEGACY_TESTS "Build existing regression tests (may require extra setup)" OFF)
+option(DFH_SDK_BUNDLE_DEPS "Install vendored dependencies when preparing SDK artifacts" OFF)
 
-# Подключаем dll файлы
-set(PROJECT_DLL_DIR
-    ${CMAKE_CURRENT_SOURCE_DIR}/build-libs/bin
-)
-
-file(GLOB DLL_FILES "${PROJECT_DLL_DIR}/*.dll")
-
-# Устанавливаем макросы для сборки
-set(PROJECT_DEFINES
-    SQLITE_THREADSAFE=1
-)
-
-# Подключаем необходимые библиотеки
-set(PROJECT_LIBS
-    mdbx
-    zstd
-    vbyte
-    simdcomp
-    minizip
-	z
-    ntdll
-    bcrypt
-)
-
-# Заголовочные файлы из include/
-file(GLOB_RECURSE PROJECT_HEADERS
-    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-    include/*.hpp
-)
-
-# Создаём виртуальную цель для заголовков, чтобы отображались в IDE
-add_custom_target(project_headers SOURCES ${PROJECT_HEADERS})
-
-# Находим все .cpp файлы в tests/
-file(GLOB TEST_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} tests/*.cpp)
-
-# Для каждого создаём отдельную цель
-foreach(test_src ${TEST_SOURCES})
-    get_filename_component(test_name ${test_src} NAME_WE)
-
-    add_executable(${test_name} ${test_src})
-
-    target_include_directories(${test_name} PRIVATE ${PROJECT_INCLUDE_DIRS})
-    target_link_directories(${test_name} PRIVATE ${PROJECT_LIBRARY_DIRS})
-    target_compile_definitions(${test_name} PRIVATE ${PROJECT_DEFINES})
-    target_link_libraries(${test_name} PRIVATE ${PROJECT_LIBS})
-	
-	# Добавляем заголовочные файлы в IDE-представление цели
-	set_source_files_properties(${PROJECT_HEADERS} PROPERTIES HEADER_FILE_ONLY ON)
-    target_sources(${test_name} PRIVATE ${PROJECT_HEADERS})
-	
-	foreach(dll ${DLL_FILES})
-        add_custom_command(TARGET ${test_name} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${dll}"
-            "$<TARGET_FILE_DIR:${test_name}>"
-        )
-    endforeach()
+set(DFH_DEPS_MODE "AUTO" CACHE STRING "AUTO|SYSTEM|BUNDLED")
+set_property(CACHE DFH_DEPS_MODE PROPERTY STRINGS AUTO SYSTEM BUNDLED)
+foreach(dep MDBX JSON ZLIB MINIZIP ZSTD)
+    set(DFH_DEPS_${dep}_MODE "INHERIT" CACHE STRING "INHERIT|AUTO|SYSTEM|BUNDLED")
+    set_property(CACHE DFH_DEPS_${dep}_MODE PROPERTY STRINGS INHERIT AUTO SYSTEM BUNDLED)
 endforeach()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
+include(cmake/deps/helpers.cmake)
+include(cmake/deps/mdbx.cmake)
+include(cmake/deps/nlohmann_json.cmake)
+include(cmake/deps/zlib_ng.cmake)
+include(cmake/deps/minizip_ng.cmake)
+include(cmake/deps/zstd.cmake)
+include(cmake/deps/simdcomp.cmake)
+include(cmake/deps/vbyte.cmake)
+include(cmake/deps/time_shield_cpp.cmake)
+include(cmake/deps/gzip_hpp.cmake)
+include(cmake/deps/fast_double_parser.cmake)
+include(cmake/deps/fast_float.cmake)
+
+# ===== Resolve dependencies =====
+dfh_use_or_fetch_zlib_ng(ZLIB_TARGET)
+dfh_use_or_fetch_minizip_ng(MINIZIP_TARGET "${ZLIB_TARGET}")
+dfh_use_or_fetch_zstd(ZSTD_TARGET)
+dfh_use_or_fetch_simdcomp(SIMDCOMP_TARGET)
+dfh_use_or_fetch_vbyte(VBYTE_TARGET)
+dfh_use_or_fetch_mdbx(MDBX_TARGET)
+dfh_use_or_fetch_nlohmann_json(JSON_TARGET)
+dfh_use_or_fetch_time_shield_cpp(TIME_SHIELD_TARGET)
+dfh_use_or_fetch_gzip_hpp(GZIP_HPP_TARGET)
+dfh_use_or_fetch_fast_double_parser(FAST_DOUBLE_TARGET)
+dfh_use_or_fetch_fast_float(FAST_FLOAT_TARGET)
+
+set(DFH_ALL_DEP_TARGETS
+    ${ZLIB_TARGET}
+    ${MINIZIP_TARGET}
+    ${ZSTD_TARGET}
+    ${SIMDCOMP_TARGET}
+    ${VBYTE_TARGET}
+    ${MDBX_TARGET}
+    ${JSON_TARGET}
+    ${TIME_SHIELD_TARGET}
+    ${GZIP_HPP_TARGET}
+    ${FAST_DOUBLE_TARGET}
+    ${FAST_FLOAT_TARGET}
+)
+list(REMOVE_DUPLICATES DFH_ALL_DEP_TARGETS)
+
+# ===== Library target =====
+add_library(DataFeedHub INTERFACE)
+target_include_directories(DataFeedHub INTERFACE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tests>
+    $<INSTALL_INTERFACE:include>
+)
+target_compile_features(DataFeedHub INTERFACE cxx_std_17)
+
+# ===== Tests =====
+if(DFH_BUILD_TESTS)
+    enable_testing()
+
+    add_executable(test_dependencies tests/test_dependencies.cpp)
+    target_link_libraries(test_dependencies PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
+    target_compile_features(test_dependencies PRIVATE cxx_std_17)
+    add_test(NAME test_dependencies COMMAND test_dependencies)
+
+    if(DFH_BUILD_LEGACY_TESTS)
+        file(GLOB DFH_TEST_SOURCES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tests/*.cpp")
+        foreach(test_src IN LISTS DFH_TEST_SOURCES)
+            get_filename_component(test_name "${test_src}" NAME_WE)
+            if(test_name STREQUAL "test_dependencies")
+                continue()
+            endif()
+            add_executable(${test_name} "${test_src}")
+            target_link_libraries(${test_name} PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
+            target_compile_features(${test_name} PRIVATE cxx_std_17)
+            add_test(NAME ${test_name} COMMAND ${test_name})
+        endforeach()
+    endif()
+endif()
