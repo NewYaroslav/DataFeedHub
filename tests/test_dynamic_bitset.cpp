@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include <DataFeedHub/src/utils/DynamicBitset.hpp>
+#include <DataFeedHub/utils/DynamicBitset.hpp>
 
 /// \brief Print the bitset for debugging
 void print(const dfh::utils::DynamicBitset& bitset) {
