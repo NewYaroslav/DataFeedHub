@@ -10,57 +10,19 @@
 /// and exchange-specific parsers.
 
 //------------------------------------------------------------------------------
-// Standard headers
-//------------------------------------------------------------------------------
-
-#include <array>
-#include <cassert>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
-#include <functional>
-#include <iostream>
-#include <list>
-#include <memory>
-#include <stdexcept>
-#include <sstream>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <unordered_map>
-#include <vector>
-
-//------------------------------------------------------------------------------
-// Third-party libraries
-//------------------------------------------------------------------------------
-
-#include <nlohmann/json.hpp>
-#include <simdcomp.h>
-#include <vbyte.h>
-#include <fast_double_parser.h>
-#include <time_shield.hpp>
-
-
-//------------------------------------------------------------------------------
-// Internal data structures
-//------------------------------------------------------------------------------
-
-#include "data/common.hpp"
-#include "data/ticks.hpp"
-
-//------------------------------------------------------------------------------
 // Utility domain
 //------------------------------------------------------------------------------
 
+#include "utils/DynamicBitset.hpp"
 #include "utils/aligned_allocator.hpp"
 #include "utils/binance_parser.hpp"
 #include "utils/bybit_parser.hpp"
+#include "utils/enum_utils.hpp"
 #include "utils/fixed_point.hpp"
 #include "utils/math_utils.hpp"
 #include "utils/simdcomp.hpp"
 #include "utils/sse_double_int64_utils.hpp"
 #include "utils/string_utils.hpp"
-#include "utils/enum_utils.hpp"
 #include "utils/symbol_key_utils.hpp"
 #include "utils/vbyte.hpp"
 #include "utils/zip_utils.hpp"

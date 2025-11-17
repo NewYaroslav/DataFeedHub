@@ -3,6 +3,7 @@
 #define _DFH_UTILS_DYNAMIC_BITSET_HPP_INCLUDED
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <vector>
@@ -62,6 +63,7 @@ namespace dfh::utils {
         /// \param pos Bit position
         /// \return Boolean value of the bit
         bool is_set(size_t pos) const {
+            if (pos >= num_bits) throw std::out_of_range("Bit position out of range");
             return (bits[pos >> 6] >> (pos & 63)) & 1ULL;
         }
 
@@ -246,7 +248,7 @@ namespace dfh::utils {
         std::vector<uint64_t> bits;
         size_t num_bits = 0;
 
-        // Проверка совпадения размеров
+        // Ensures both bitsets have identical sizes.
         void check_size(const DynamicBitset& other) const {
             if (num_bits != other.num_bits) {
                 throw std::invalid_argument("Bitsets must be of the same size");

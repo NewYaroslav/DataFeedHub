@@ -5,6 +5,12 @@
 /// \file vbyte.hpp
 /// \brief Utility functions for VByte compression and decompression (32/64-bit).
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include <vbyte.h>
+
 namespace dfh::utils {
 
     /// \brief Appends a single compressed integer to a byte buffer.
@@ -90,7 +96,7 @@ namespace dfh::utils {
     /// \param values Output array to store decompressed values.
     /// \param length Number of values to decompress.
     /// \return Number of bytes read from the buffer.
-    size_t extract_vbyte(const uint8_t* buffer, size_t& offset, uint32_t* values, size_t length) {
+    inline size_t extract_vbyte(const uint8_t* buffer, size_t& offset, uint32_t* values, size_t length) {
         size_t bytes = vbyte_uncompress_unsorted32(buffer + offset, values, length);
         offset += bytes;
         return bytes;
@@ -102,7 +108,7 @@ namespace dfh::utils {
     /// \param values Output array to store decompressed values.
     /// \param length Number of values to decompress.
     /// \return Number of bytes read from the buffer.
-    size_t extract_vbyte(const uint8_t* buffer, size_t& offset, uint64_t* values, size_t length) {
+    inline size_t extract_vbyte(const uint8_t* buffer, size_t& offset, uint64_t* values, size_t length) {
         size_t bytes = vbyte_uncompress_unsorted64(buffer + offset, values, length);
         offset += bytes;
         return bytes;

@@ -5,6 +5,16 @@
 /// \file bybit_parser.hpp
 /// \brief Parses CSV trade data from Bybit.
 
+#include <cstddef>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+
+#include <fast_double_parser.h>
+#include <time_shield.hpp>
+
+#include <DataFeedHub/data/ticks.hpp>
+
 namespace dfh::utils {
 
     /// \brief Parses CSV trade data from Bybit and appends to a vector of MarketTick
@@ -12,7 +22,7 @@ namespace dfh::utils {
     /// \param csv_data The CSV data as a string.
     /// \param reserve_size The initial reserve size for the ticks vector.
     /// \param auto_detect_precision Enables automatic detection of price and volume precision.
-    void parse_bybit_trades(
+    inline void parse_bybit_trades(
             MarketTickSequence& sequence,
             const std::string& csv_data,
             size_t reserve_size = 1000000,

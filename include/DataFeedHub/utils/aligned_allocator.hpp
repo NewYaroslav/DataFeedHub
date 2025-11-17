@@ -5,10 +5,11 @@
 /// \file aligned_allocator.hpp
 /// \brief src: https://github.com/hansen-audio/aligned-allocator
 
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <new>
-#include <vector>
+#include <type_traits>
 
 #if defined(_WIN32)
 #include <malloc.h>

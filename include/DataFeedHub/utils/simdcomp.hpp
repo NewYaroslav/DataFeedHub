@@ -5,6 +5,12 @@
 /// \file simdcomp.hpp
 /// \brief Functions for encoding and decoding integer sequences using SIMD compression (SIMD-BP128).
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include <simdcomp.h>
+
 namespace dfh::utils {
 
     /// \brief Appends SIMD-compressed values using a fixed bit width.
