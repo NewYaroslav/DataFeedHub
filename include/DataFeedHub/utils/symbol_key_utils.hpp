@@ -5,6 +5,10 @@
 /// \file symbol_key_utils.hpp
 /// \brief Utility functions for packing and unpacking market symbol keys.
 
+#include <cstdint>
+
+#include <DataFeedHub/data/common/enums.hpp>
+
 namespace dfh {
 
     /// \brief Bitmask for extracting the 35-bit timestamp part from a 64-bit symbol key.

@@ -5,6 +5,11 @@
 /// \file math_utils.hpp
 /// \brief Provides utility math functions for use within the DataFeedHub library.
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+
 namespace dfh::utils {
 
     /// \brief Returns a power of 10 based on the number of digits.
@@ -41,11 +46,11 @@ namespace dfh::utils {
         return static_cast<T>(powers_of_ten[digits]);
     }
 
-    /// \brief Возвращает медианное значение из трёх входных.
-    /// \param a Первое значение.
-    /// \param b Второе значение.
-    /// \param c Третье значение.
-    /// \return Медианное значение из трёх.
+    /// \brief Returns the median value among three inputs.
+    /// \param a First value.
+    /// \param b Second value.
+    /// \param c Third value.
+    /// \return Median of the inputs.
     template <typename T>
     T median_filter(T a, T b, T c) {
         if ((a >= b && a <= c) || (a <= b && a >= c)) {

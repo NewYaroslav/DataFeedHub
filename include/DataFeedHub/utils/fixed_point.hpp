@@ -5,6 +5,13 @@
 /// \file fixed_point.hpp
 /// \brief Utilities for fixed-point arithmetic and precision control.
 
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+
 namespace dfh::utils {
 
     /// \brief Normalizes a floating-point value to specified decimal precision.
@@ -14,7 +21,7 @@ namespace dfh::utils {
     /// \param digits Number of decimal places to preserve (0-18)
     /// \return Normalized value with specified precision
     /// \throw std::invalid_argument If digits exceed maximum supported precision
-    const double normalize_double(double value, size_t digits) {
+    inline double normalize_double(double value, size_t digits) {
         if (digits > 18) {
             throw std::invalid_argument("Digits exceed maximum precision (18).");
         }
@@ -47,7 +54,7 @@ namespace dfh::utils {
     /// \param digits Number of significant decimal places (0-18)
     /// \return Tolerance value for floating-point comparisons
     /// \throw std::invalid_argument If digits exceed maximum supported precision
-    double precision_tolerance(size_t digits) {
+    inline double precision_tolerance(size_t digits) {
         if (digits > 18) {
             throw std::invalid_argument("Digits exceed maximum precision (18).");
         }
@@ -75,14 +82,14 @@ namespace dfh::utils {
         return tolerance[digits];
     }
 	
-	/// \brief Calculates number of decimal digits from a step string like "0.001".
-	/// \param step Precision step as a string (e.g., "0.01").
-	/// \return Number of decimal digits.
-	int count_decimal_digits(const std::string& step) {
-		auto pos = step.find('.');
-		if (pos == std::string::npos) return 0;
-		return step.size() - pos - 1;
-	}
+    /// \brief Calculates number of decimal digits from a step string like "0.001".
+    /// \param step Precision step as a string (e.g., "0.01").
+    /// \return Number of decimal digits.
+    inline int count_decimal_digits(const std::string& step) {
+        auto pos = step.find('.');
+        if (pos == std::string::npos) return 0;
+        return static_cast<int>(step.size() - pos - 1);
+    }
 
     /// \brief Converts floating-point value to fixed-point integer representation.
     /// \details Uses scaling factor to preserve decimal precision. For optimal results,
@@ -94,21 +101,21 @@ namespace dfh::utils {
         return static_cast<int64_t>(std::round(value * static_cast<double>(scaling_factor)));
     }
 
-	/// \overload
+    /// \overload
     /// \param scaling_factor Double precision scaling factor
     inline int64_t to_fixed_point(double value, double scaling_factor) {
         return static_cast<int64_t>(std::round(value * scaling_factor));
     }
 
-	/// \brief Converts fixed-point integer back to floating-point value.
+    /// \brief Converts fixed-point integer back to floating-point value.
     /// \param value Fixed-point integer to decode
     /// \param scale Scaling factor used during encoding (must match original scaling)
     /// \return Reconstructed floating-point value
-	inline double from_fixed_point(int64_t value, int64_t scale) {
-		return static_cast<double>(value) / static_cast<double>(scale);
-	}
+    inline double from_fixed_point(int64_t value, int64_t scale) {
+        return static_cast<double>(value) / static_cast<double>(scale);
+    }
 
-	/// \brief Compares two floating-point values with specified precision.
+    /// \brief Compares two floating-point values with specified precision.
     /// \details Uses precomputed tolerance values to account for rounding errors.
     /// \param value1 First comparison operand
     /// \param value2 Second comparison operand

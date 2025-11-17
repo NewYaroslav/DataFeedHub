@@ -5,6 +5,18 @@
 /// \file binance_parser.hpp
 /// \brief Parses CSV trade data from Binance.
 
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+
+#include <fast_double_parser.h>
+
+#include <DataFeedHub/data/ticks.hpp>
+
 namespace dfh::utils {
 
     /// \brief Parses CSV trade data from Binance futures and appends to a vector of MarketTick
@@ -12,7 +24,7 @@ namespace dfh::utils {
     /// \param csv_data CSV data as a string.
     /// \param reserve_size Initial reserve size for the ticks vector.
     /// \param auto_detect_precision Enables automatic detection of price and volume precision.
-    void parse_binance_futures_trades(
+    inline void parse_binance_futures_trades(
             MarketTickSequence& sequence,
             const std::string& csv_data,
             size_t reserve_size = 1000000,
@@ -125,7 +137,7 @@ namespace dfh::utils {
     /// \param csv_data CSV data as a string.
     /// \param reserve_size Initial reserve size for the ticks vector.
     /// \param auto_detect_precision Enables automatic detection of price and volume precision.
-    void parse_binance_spot_trades(
+    inline void parse_binance_spot_trades(
             MarketTickSequence& sequence,
             const std::string& csv_data,
             size_t reserve_size = 1000000,

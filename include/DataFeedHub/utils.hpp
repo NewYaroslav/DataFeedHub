@@ -45,24 +45,25 @@
 // Internal data structures
 //------------------------------------------------------------------------------
 
-#include "data/common.hpp"
-#include "data/ticks.hpp"
+#include <DataFeedHub/data/common.hpp>
+#include <DataFeedHub/data/ticks.hpp>
 
 //------------------------------------------------------------------------------
 // Utility domain
 //------------------------------------------------------------------------------
 
-#include "utils/aligned_allocator.hpp"
-#include "utils/binance_parser.hpp"
-#include "utils/bybit_parser.hpp"
-#include "utils/fixed_point.hpp"
-#include "utils/math_utils.hpp"
-#include "utils/simdcomp.hpp"
-#include "utils/sse_double_int64_utils.hpp"
-#include "utils/string_utils.hpp"
-#include "utils/enum_utils.hpp"
-#include "utils/symbol_key_utils.hpp"
-#include "utils/vbyte.hpp"
-#include "utils/zip_utils.hpp"
+#include <DataFeedHub/utils/DynamicBitset.hpp>
+#include <DataFeedHub/utils/aligned_allocator.hpp>
+#include <DataFeedHub/utils/binance_parser.hpp>
+#include <DataFeedHub/utils/bybit_parser.hpp>
+#include <DataFeedHub/utils/enum_utils.hpp>
+#include <DataFeedHub/utils/fixed_point.hpp>
+#include <DataFeedHub/utils/math_utils.hpp>
+#include <DataFeedHub/utils/simdcomp.hpp>
+#include <DataFeedHub/utils/sse_double_int64_utils.hpp>
+#include <DataFeedHub/utils/string_utils.hpp>
+#include <DataFeedHub/utils/symbol_key_utils.hpp>
+#include <DataFeedHub/utils/vbyte.hpp>
+#include <DataFeedHub/utils/zip_utils.hpp>
 
 #endif // _DFH_UTILS_HPP_INCLUDED

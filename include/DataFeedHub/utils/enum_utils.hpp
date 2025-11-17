@@ -5,6 +5,8 @@
 /// \file enum_utils.hpp
 /// \brief Contains utility functions for working with enums.
 
+#include <string>
+
 namespace dfh {
 
     template <typename EnumType>
