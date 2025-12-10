@@ -1,4 +1,4 @@
-# === Общие папки билдов ===
+# === РћР±С‰РёРµ РїР°РїРєРё Р±РёР»РґРѕРІ ===
 /build/
 /build-msvc/
 /build-mingw/
@@ -31,7 +31,7 @@ compile_commands.json
 *.ilk
 *.obj
 
-# Проекты, генерируемые из CMake
+# РџСЂРѕРµРєС‚С‹, РіРµРЅРµСЂРёСЂСѓРµРјС‹Рµ РёР· CMake
 *.sln
 *.vcxproj
 *.vcxproj.filters
@@ -42,7 +42,7 @@ compile_commands.json
 .idea/
 cmake-build-*/
 
-# === Временные / мусор ===
+# === Р’СЂРµРјРµРЅРЅС‹Рµ / РјСѓСЃРѕСЂ ===
 *.log
 *.tmp
 *.cache
