@@ -1,0 +1,51 @@
+# === Общие папки билдов ===
+/build/
+/build-msvc/
+/build-mingw/
+/build-clang/
+/build-tests-mingw/
+/bin/
+/lib/
+/out/
+/dist/
+
+# === CMake ===
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+Makefile
+compile_commands.json
+
+# === Visual Studio ===
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sdf
+*.opensdf
+*.VC.db
+*.pdb
+*.idb
+*.ilk
+*.obj
+
+# Проекты, генерируемые из CMake
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# === VS Code / CLion ===
+.vscode/
+.idea/
+cmake-build-*/
+
+# === Временные / мусор ===
+*.log
+*.tmp
+*.cache
+*.bak
+*~
+*.swp
