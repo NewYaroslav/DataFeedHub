@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 project(DataFeedHub LANGUAGES C CXX VERSION 0.1.0)
 
+if (MSVC)
+    # Корректный __cplusplus для libmdbx
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>")
+
+    # Запретить макросы min/max из <windows.h>, чтобы не ломать std::max и т.п.
+    add_compile_definitions(NOMINMAX)
+endif()
+
 # ===== Root configuration =====
 if(POLICY CMP0152)
     cmake_policy(SET CMP0152 NEW)
