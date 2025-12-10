@@ -3,7 +3,7 @@
 #define _DTH_DATA_FUNDING_HPP_INCLUDED
 
 /// \file funding.hpp
-/// \brief
+/// \brief Заголовок домена funding: перечисления и детали расчётов фандинга.
 
 #include "funding/enums.hpp"
 #include "funding/FundingDetails.hpp"

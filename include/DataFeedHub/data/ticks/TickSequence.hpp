@@ -3,30 +3,30 @@
 #define _DFH_DATA_TICK_SEQUENCE_HPP_INCLUDED
 
 /// \file TickSequence.hpp
-/// \brief Defines a generic structure for a sequence of ticks with metadata.
+/// \brief Объединяет шаблонную структуру последовательности тиков с набором сопутствующих метаданных.
 
 namespace dfh {
 
-    /// \brief Generic structure for a sequence of ticks with additional metadata.
+    /// \brief Шаблонная структура последовательности тиков и связанных данных.
     template <typename TickType>
     struct TickSequence {
-        std::vector<TickType> ticks{}; ///< Sequence of tick data of the specified type.
-        TickUpdateFlags flags{TickUpdateFlags::NONE}; ///< Tick data flags bitmask.
-        std::uint16_t symbol_index{0};       ///< Index of the symbol.
-        std::uint16_t provider_index{0};     ///< Index of the data provider.
-        std::uint16_t price_digits{0};       ///< Number of decimal places for price.
-        std::uint16_t volume_digits{0};      ///< Number of decimal places for volume.
+        std::vector<TickType> ticks{}; ///< Последовательность тиков указанного типа.
+        TickUpdateFlags flags{TickUpdateFlags::NONE}; ///< Маска флагов для данных тиков.
+        std::uint16_t symbol_index{0};       ///< Индекс символа.
+        std::uint16_t provider_index{0};     ///< Индекс источника данных.
+        std::uint16_t price_digits{0};       ///< Цифр после запятой для цены.
+        std::uint16_t volume_digits{0};      ///< Цифр после запятой для объёма.
 
-        /// \brief Default constructor.
+        /// \brief Конструктор по умолчанию.
         TickSequence() = default;
 
-        /// \brief Constructor to initialize all fields.
-        /// \param ts Sequence of tick data.
-        /// \param f Tick data flags.
-        /// \param si Index of the symbol.
-        /// \param pi Index of the data provider.
-        /// \param d Number of decimal places for price.
-        /// \param vd Number of decimal places for volume.
+        /// \brief Конструктор с непосредственной инициализацией всех полей.
+        /// \param ts Последовательность тиков.
+        /// \param f Маска флагов.
+        /// \param si Индекс символа.
+        /// \param pi Индекс источника.
+        /// \param d Число знаков после запятой для цены.
+        /// \param vd Число знаков после запятой для объёма.
         TickSequence(std::vector<TickType> ts,
                      TickUpdateFlags f,
                      std::uint16_t si,
@@ -41,14 +41,14 @@ namespace dfh {
             , volume_digits(vd) {}
     };
 
-    // Tick sequence structures for specific tick types.
+    // Специализации последовательности для конкретных типов тиков.
     using ValueTickSequence = TickSequence<ValueTick>;
     using QuoteTickSequence = TickSequence<QuoteTick>;
     using MarketTickSequence = TickSequence<MarketTick>;
 
 #if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 
-    /// \brief Serializes TickSequence to JSON.
+    /// \brief Сериализует TickSequence в JSON.
     template <typename TickType>
     inline void to_json(nlohmann::json& j, const TickSequence<TickType>& value) {
         j = nlohmann::json{
@@ -61,7 +61,7 @@ namespace dfh {
         };
     }
 
-    /// \brief Deserializes TickSequence from JSON.
+    /// \brief Десериализует TickSequence из JSON.
     template <typename TickType>
     inline void from_json(const nlohmann::json& j, TickSequence<TickType>& value) {
         j.at("ticks").get_to(value.ticks);

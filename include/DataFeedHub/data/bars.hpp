@@ -3,7 +3,7 @@
 #define _DTH_DATA_BARS_HPP_INCLUDED
 
 /// \file bars.hpp
-/// \brief
+/// \brief Точка входа для структур баров (OHLCV и метаданные) в домене data.
 
 #include "bars/enums.hpp"
 #include "bars/flags.hpp"

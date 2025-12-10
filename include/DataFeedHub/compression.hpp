@@ -3,15 +3,13 @@
 #define _DFH_COMPRESSION_HPP_INCLUDED
 
 /// \file compression.hpp
-/// \brief High-level aggregated include for the DataFeedHub compression domain.
-///
-/// Provides access to all components for binary serialization and compression
-/// of tick and bar market data. Includes:
-/// - `compression/utils.hpp`: low-level encoding utilities (zig-zag, frequency, etc.)
-/// - `compression/ticks.hpp`: tick serializers and compressors
-/// - `compression/bars.hpp`: bar serializers
-///
-/// This header also includes required data and utility modules.
+/// \brief Высокоуровневый include для домена сжатия и сериализации.
+/// \details Объединяет декларации битовых кодеков и вспомогательных утилит, которые
+/// применяются ко всем типам тиков и баров. Включает:
+/// - `compression/utils.hpp` для низкоуровневых преобразований и кодеков частот;
+/// - `compression/ticks.hpp` для серийных и пакетных кодеков тиков;
+/// - `compression/bars.hpp` для сериализации баров.
+/// Также подключаются доменные данные и базовые утилиты, необходимые кодекам.
 
 //------------------------------------------------------------------------------
 // Standard headers

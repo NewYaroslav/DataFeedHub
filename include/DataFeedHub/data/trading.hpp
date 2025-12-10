@@ -3,10 +3,9 @@
 #define _DFH_DATA_TRADING_HPP_INCLUDED
 
 /// \file trading.hpp
-/// \brief Aggregates trading-related data structures and enumerations.
-///
-/// This header provides a unified include point for all types related to trading operations,
-/// including trade and order requests/results, and trading enums.
+/// \brief Централизованный include для типов, относящихся к торговле и ордерам.
+/// \details Содержит запросы/результаты по ордерам, трейду и перечисления, которые
+/// используются в подсистеме торговли.
 
 #include "trading/enums.hpp"
 #include "trading/OrderResult.hpp"

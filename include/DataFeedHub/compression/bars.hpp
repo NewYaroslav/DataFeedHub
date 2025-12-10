@@ -3,7 +3,7 @@
 #define _DFH_COMPRESSION_BARS_HPP_INCLUDED
 
 /// \file bars.hpp
-/// \brief Aggregated entry point for bar compression components.
+/// \brief Входная точка для компонентов компрессии баров.
 
 #include "bars/IBarSerializer.hpp"
 #include "bars/BarBinarySerializerV1.hpp"
