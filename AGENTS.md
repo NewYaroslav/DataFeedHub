@@ -1,221 +1,293 @@
-# AGENTS
+# АГЕНТЫ
 
-## Code Style: Git Commit Convention
+Документ для разработчиков и ИИ-агентов по работе с DataFeedHub. Цель — собрать в одном месте актуальные правила по структуре, сборке, тестам, статанализу, ограничениям и процессу разработки. Все формулировки технические,примеры и команды — реальные из репозитория. Комментарии и пояснения внутри файла написаны на русском языке.
 
-The project follows [Conventional Commits](https://www.conventionalcommits.org/) for git history clarity and automation.
+## 1. Краткое описание проекта
+DataFeedHub — заголовочная C++ библиотека (CMake INTERFACE) для хранения, обработки и сжатия рыночных данных. Библиотека подключается как CMake-сабмодуль и предоставляет публичный API из `include/`. Основные сущности — тики (MarketTick, TradeTick, QuoteTick и т.п.) и бары (`include/DataFeedHub/data/bars/`). Ключевые домены:
+- `data` — модели рыночных данных: тики, бары, флаги, типы времени/цены/объёма; README по тик-домену: `include/DataFeedHub/data/ticks/README-RU.md`.
+- `compression` — алгоритмы компрессии/декомпрессии поверх структур из `data`; кодеки тиков и баров, вспомогательные кодеки в `compression/utils/`.
+- `core` — инфраструктура вокруг буферов рыночных данных и интеграционных интерфейсов (например, `MarketDataBuffer`), сборка/доставка данных из хранилищ.
+- `storage` — флаги/метаданные хранилищ, интеграции `mdbx` и `sqlite3` (через CMake deps).
+- `transform` — ресемплинг и другие преобразования рядов/баров.
+- `utils` — вспомогательные утилиты без доменной логики: парсеры, битовые/числовые функции, обёртки для vbyte/simdcomp и пр.
+- `interfaces` — заготовки интерфейсов для трейдинга/конфигураций.
+- `libs` — внешние third-party зависимости, поставляются вместе с репозиторием, но считаются внешним кодом.
 
-- Use prefixes indicating the type of change:
-  `fix:`, `refactor:`, `example:`, `test:`, `docs:`, `feat:`, etc.
-- Optional scope in parentheses:
-  `fix(include):`, `refactor(server):`, `example(codex):`
-- Commit message is short and imperative:
-  Examples: `fix(include): remove redundant header`, `refactor(server): simplify transaction logic`
+Проект заголовочный: реализация распределена по публичным заголовкам и вспомогательным включаемым файлам; директории `src/` нет. Тесты лежат в `tests/` и собираются отдельными целями.
 
-Format:
-```text
-type(scope): short message
+## 2. Границы и зависимости (DDD-стиль)
+Раздел фиксирует слойность, разрешённые зависимости и содержимое каталогов. Цель — избежать циклов и смешения доменной логики с инфраструктурой.
+
+### 2.1 Каталоги и их ответственность
+- `include/DataFeedHub/data/` — доменные структуры тиков и баров, типы времени/цены/объёма, флаги и вспомогательные DTO. Публичный API библиотеки на уровне типов. Нет привязки к БД, файловой системе или форматам хранения.
+- `include/DataFeedHub/compression/` — кодеки сериализации/десериализации тиков и баров, вспомогательные кодеки (`compression/utils/`). Работают с типами из `data` и байтовыми буферами, не знают про конкретные хранилища и `core`.
+- `include/DataFeedHub/core/` — инфраструктурный слой: буферы рыночных данных (например, `MarketDataBuffer`), подписчики, восстановление спреда, подготовка данных к выдаче. Может использовать `data` и `compression`.
+- `include/DataFeedHub/storage/` — флаги и метаданные хранилищ, интеграционные элементы для `mdbx`/`sqlite3`. Не вносит бизнес-правила, использует модели из `data`.
+- `include/DataFeedHub/transform/` — трансформации рядов/баров (ресемплинг, split/gap-fill и т.п.), опирается на `data`.
+- `include/DataFeedHub/utils/` — вспомогательные функции: парсеры, битовые и numeric утилиты, обёртки для vbyte/simdcomp. Нет бизнес-логики, предназначены для переиспользования.
+- `include/DataFeedHub/interfaces/` — заготовки интерфейсов для внешних компонентов (трейдинг, конфиги и др.).
+- `tests/` — тестовые бенчмарки/юниты; по умолчанию собирается `test_dependencies`, остальные включаются через `DFH_BUILD_LEGACY_TESTS=ON`.
+- `libs/` — вендорный код зависимостей (simdcomp, vbyte, mdbx, nlohmann_json и др.). Изменения — только в рамках отдельной задачи на обновление/патч.
+- `cmake/` и `cmake/deps/` — CMake-модули для поиска/подключения зависимостей (zlib-ng, minizip-ng, zstd, simdcomp, vbyte, time-shield-cpp, gzip-hpp, fast_double_parser, fast_float, mdbx, nlohmann_json).
+- Корневые `.bat` — вспомогательные скрипты сборки/тестов: `build-tests-mingw.bat`, `run-all-tests.bat`, `build-cb.bat`, `build-libs.bat`.
+
+### 2.2 Правила зависимостей между доменами
+- `data` не зависит от `core`, `compression`, БД и I/O. Только базовые типы и флаги.
+- `compression` зависит от `data`, но не зависит от `core`, `storage` и конкретных БД.
+- `core` может зависеть от `data` и `compression`; отвечает за инфраструктуру, буферы, пост-обработку.
+- `storage` использует модели из `data`, может знать о форматах хранилищ, но не содержит бизнес-логики предметной области.
+- `transform` опирается на `data`, может вызывать утилиты из `utils`, не встраивает хранилища.
+- `utils` не содержит доменных правил; допустимо использовать в других доменах, сам не должен зависеть от них.
+- `interfaces` определяет контракты, не тянет реализацию.
+- Циклические зависимости запрещены; при добавлении include проверяйте, что слойность не ломается.
+
+### 2.3 Umbrella-заголовки и инклюды
+- Umbrella в корне `include/DataFeedHub/`: `dfh.hpp`, `data.hpp`, `compression.hpp`, `storage.hpp`, `transform.hpp`, `utils.hpp`. Предпочтительно подключать доменные umbrella вместо листовых файлов.
+- Листовые заголовки внутри домена не должны инклюдить друг друга без необходимости; транзитивные include добавляйте в umbrella.
+- Новые публичные типы должны быть доступны через соответствующий umbrella-файл.
+
+## 3. Запреты и ограничения
+- Нельзя менять формат существующей компрессии/хранения тиков/баров, используемый в проде, без отдельной миграционной задачи и согласования.
+- Нельзя добавлять бизнес-логику и доменные правила в `utils` и в `libs`. Эти каталоги — вспомогательный и сторонний код.
+- Нельзя напрямую работать с конкретной БД в коде вне реализаций интерфейсов БД/`core`-слоя.
+- Нельзя добавлять тяжёлые или платформенно-зависимые зависимости без обсуждения (критично для кроссплатформенности).
+- Нельзя коммитить артефакты сборки и файлы IDE: `build-*/`, `.vs/`, `.vscode/`, локальные `cmake-build-*`, сгенерированные `.sln/.vcxproj`.
+- Изменения в `libs/` — только отдельной задачей «обновить/заменить библиотеку X» с мотивацией и проверкой совместимости.
+- Не вводить циклические зависимости между доменами; при сомнениях — фиксировать границу в комментарии и README домена.
+- Не раздувать горячие пути (компрессия тиков/баров, низкоуровневые байтовые операции) лишними абстракциями без измерений производительности.
+- Не отключать существующие тесты и статанализ без веской причины и согласования.
+
+## 4. Структура репозитория (фактическая)
+- `include/DataFeedHub/` — публичный API (доменные DTO, кодеки, интерфейсы, утилиты). Нет каталога `src/`, реализация заголовочная.
+  - `data/` — тики, бары, флаги, метаданные; README по тикам: `data/ticks/README-RU.md`.
+  - `compression/` — кодеки тиков/баров, доп. кодеки в `compression/utils/`.
+  - `core/` — буферы и инфраструктурные компоненты.
+  - `storage/` — интеграции хранилищ, флаги и метаданные.
+  - `transform/` — ресемплинг и прочие преобразования.
+  - `utils/` — парсеры, битовые и numeric утилиты, обёртки vbyte/simdcomp.
+  - `interfaces/` — интерфейсы для внешних интеграций.
+  - Umbrella: `dfh.hpp`, `data.hpp`, `compression.hpp`, `storage.hpp`, `transform.hpp`, `utils.hpp`.
+- `tests/` — тесты CMake:
+  - Всегда собирается `test_dependencies` (проверка связности зависимостей).
+  - При `DFH_BUILD_LEGACY_TESTS=ON` добавляются `test_dynamic_bitset`, `test_frequency_encoding`, `test_market_data_storage`, `test_vbyte_simdcomp`, `test_zip_utils`.
+- `cmake/` и `cmake/deps/` — модули для зависимостей: `helpers.cmake`, `mdbx.cmake`, `nlohmann_json.cmake`, `zlib_ng.cmake`, `minizip_ng.cmake`, `zstd.cmake`, `simdcomp.cmake`, `vbyte.cmake`, `time_shield_cpp.cmake`, `gzip_hpp.cmake`, `fast_double_parser.cmake`, `fast_float.cmake`.
+- `libs/` — вендорные зависимости (не править в фичевых задачах).
+- Скрипты в корне: `build-tests-mingw.bat`, `run-all-tests.bat`, `build-cb.bat`, `build-libs.bat`.
+- Каталоги `build-*`, `.vs/`, `.vscode/`, локальные IDE артефакты — личные, не коммитятся.
+
+## 5. Сборка и тесты (Windows: MSVC + MinGW)
+Общий таргет: `DataFeedHub` (INTERFACE), `cxx_std_17`, include для `include/` и `tests/`. Опции:
+- `DFH_BUILD_TESTS` — по умолчанию `ON`, включает сборку тестов.
+- `DFH_BUILD_LEGACY_TESTS` — по умолчанию `OFF`, поднимает дополнительные регрессионные тесты.
+- `DFH_SDK_BUNDLE_DEPS` — установка вендорных deps при сборке SDK.
+- `DFH_DEPS_MODE` и `DFH_DEPS_*_MODE` (`INHERIT|AUTO|SYSTEM|BUNDLED`) управляют источниками зависимостей.
+
+### 5.1 MSVC (Visual Studio 18 2026)
+- Конфигурация (пример):  
+  `cmake -S . -B build-msvc -G "Visual Studio 18 2026" -A x64 -DDFH_BUILD_TESTS=ON -DDFH_BUILD_LEGACY_TESTS=OFF`
+- Сборка:  
+  `cmake --build build-msvc --config Debug`
+- Тесты (из каталога `build-msvc`):  
+  `ctest -C Debug --output-on-failure`
+- Ключевые флаги CMake (см. корневой `CMakeLists.txt`):
+  - `/Zc:__cplusplus` для корректного значения `__cplusplus` (важно для `libmdbx`).
+  - `NOMINMAX` для защиты от макросов `min/max` из `<windows.h>`.
+- Особенности зависимостей:
+  - `libvbyte` под MSVC собирается как заглушка `dfh_vbyte_stub` (без `varintdecode.c`); полноценная сборка — на GCC/Clang.
+  - `test_dependencies` под MSVC проверяет связность основных зависимостей; проверки `libvbyte`, `time-shield-cpp`, `gzip-hpp` закрываются другими toolchain (Linux/MinGW).
+- Режимы зависимостей:
+  - `DFH_DEPS_MODE=AUTO` (по умолчанию) — использовать системные, если найдены, иначе подтянуть из `libs/` или fetch.
+  - `DFH_DEPS_MODE=SYSTEM` — только системные; при отсутствии — ошибка конфигурации.
+  - `DFH_DEPS_MODE=BUNDLED` — использовать вендорные исходники из `libs/`.
+
+### 5.2 MinGW (g++)
+- Скрипт `build-tests-mingw.bat` выполняет последовательность:
+  1. Создаёт каталог `build-tests-mingw/`, если его нет.
+  2. Конфигурирует CMake генератором `MinGW Makefiles` с `-DDFH_BUILD_TESTS=ON`.
+  3. Собирает проект `cmake --build %BUILD_DIR%`.
+  4. Запускает `ctest --output-on-failure` из каталога сборки.
+  5. Останавливается на `pause` (для локального запуска в терминале).
+- Требования: установлен MinGW, `g++` доступен в `PATH`.
+- Опция `DFH_BUILD_LEGACY_TESTS` может быть добавлена в команду конфигурации при необходимости регрессионных тестов.
+
+### 5.3 Единый прогон (MSVC + MinGW)
+- Скрипт `run-all-tests.bat` выполняет:
+  1. `cmake --build build-msvc --config Debug`.
+  2. Переходит в `build-msvc` и запускает `ctest -C Debug --output-on-failure`.
+  3. Возвращается в корень и вызывает `call build-tests-mingw.bat`.
+  4. При любой ошибке сборки/тестов возвращает ненулевой код и пишет `Tests FAILED.`.
+- Ожидание: зелёный прогон двух toolchain перед PR.
+
+### 5.4 Примечания по тестам
+- По умолчанию собирается только `test_dependencies`, проверяющий наличие и связность всех зависимостей.
+- При включении `DFH_BUILD_LEGACY_TESTS=ON` добавляются регрессии:
+  - `test_dynamic_bitset`
+  - `test_frequency_encoding`
+  - `test_market_data_storage`
+  - `test_vbyte_simdcomp`
+  - `test_zip_utils`
+- Все тесты требуют C++17 (`target_compile_features(... cxx_std_17)`).
+- При изменении публичного API тесты должны быть дополнены/обновлены под новый сценарий.
+
+## 6. Статический анализ и стиль кода
+- Стандарт: C++17 (`CMAKE_CXX_STANDARD 17`, `REQUIRED ON`).
+- Форматирование: придерживаться существующего стиля заголовков. Если в корне появляется `.clang-format`, использовать его; если файла нет — сохранять текущую расстановку отступов/шаблонов в домене.
+- Рекомендуемые анализаторы для внутренних модулей (`include/**`, `tests/**`):
+  - MSVC Code Analysis (`/analyze`) с Microsoft Native Recommended Ruleset.
+  - C++ Core Check (CppCoreCheck).
+  - Дополнительно по желанию — clang-tidy и/или SonarLint.
+- Для `libs/` статанализ низкоприоритетен и обычно отключён, чтобы не загрязнять сборку предупреждениями стороннего кода.
+- Приоритет исправлений:
+  1. Потенциальные UB/критичные ошибки (разыменование null, выход за границы, неинициализированные данные, некорректная арифметика).
+  2. Надёжность и читаемость (устойчивость к исключениям, валидность инвариантов).
+  3. Стиль и рекомендации.
+- При добавлении нового кода желательно указывать `\thread_safety` в Doxygen (`Thread-safe`, `Not thread-safe` или условное описание), чтобы статанализ и ревьюеры понимали модель памяти.
+
+## 7. Требования к изменениям (тесты и документация)
+- Любое новое публичное API (`include/DataFeedHub/**`: структуры тиков/баров, функции, классы, шаблоны) обязательно сопровождается:
+  - Тестами в `tests/**`: минимум один типичный сценарий и 1–2 граничных. Для компрессии — кейс «сжали → разжали → получили идентичные данные».
+  - Базовой документацией: `///` Doxygen-комментарии в заголовках с описанием назначения, параметров, возвратов, инвариантов, допущений; при необходимости обновляется README домена или `docs/`.
+- Любой новый файл (публичный или внутренний) должен иметь описание:
+  - Публичные — `///` Doxygen над экспортируемыми символами.
+  - Утилиты/внутренние — краткий комментарий или запись в README домена.
+- Изменения без тестов и комментариев не принимаются, кроме очевидных правок инфраструктуры/документации без кода.
+- При изменении существующей логики: дополняйте текущие тесты или добавляйте новые под непройденный сценарий.
+- Для «горячих путей» (компрессия тиков, критические секции `MarketDataBuffer`, низкоуровневые байтовые функции):
+  - Изменения допускаются только с аккуратным рефакторингом, контролем перфоманса и обязательными тестами.
+  - Избегайте лишних аллокаций и абстракций, влияющих на скорость.
+- Doxygen-конвенции (кратко):
+  - Формат предпочтительно `///`, теги с обратной косой чертой.
+  - Шаблон: `\brief`, `\tparam`, `\param` (по порядку), `\return` (ровно раз для не-void), `\throws`, `\pre`, `\post`, `\invariant`, `\complexity`, `\thread_safety`, `\note`/`\warning`.
+  - Текст технический, по возможности на английском; строки до ~100–120 символов.
+  - Новые публичные сущности без Doxygen-комментариев не проходят ревью.
+
+## 8. Процесс разработки (ветки, PR, проверки)
+- Ветки: любая фича/рефакторинг — в отдельной ветке от `main`. По завершении — PR в `main` с ревью ответственным.
+- Коммиты: осмысленные сообщения, один логический шаг — один коммит (например, «обновить AGENTS.md», «починить сборку под Windows», «добавить поддержку новой структуры тиков»). Сохранять чистоту истории, избегать шумовых коммитов.
+- Не коммитить артефакты: `build-*`, `.vs/`, `.vscode/`, локальные `cmake-build-*`, `.sln/.vcxproj`, временные IDE файлы.
+- Перед PR по инфраструктуре (CMake, зависимости, AGENTS.md) требуется:
+  - Сборка под MSVC + `ctest -C Debug --output-on-failure` в `build-msvc`.
+  - Сборка/тесты под MinGW через `build-tests-mingw.bat` (или эквивалент).
+  - При необходимости — статанализ по изменённым файлам.
+- Перед PR по функциональным изменениям (API/логика):
+  - Обновить/добавить тесты.
+  - Проверить, что включены нужные `DFH_DEPS_*_MODE` и флаги компиляции.
+  - Убедиться, что новые публичные типы доступны через umbrella-заголовки.
+- Ревью: проверяется соблюдение границ доменов, отсутствие циклов зависимостей, наличие тестов/документации, сохранение обратной совместимости форматов.
+
+## 9. Работа с зависимостями
+- Управление через CMake опции `DFH_DEPS_MODE` и `DFH_DEPS_*_MODE` (`INHERIT|AUTO|SYSTEM|BUNDLED`):
+  - `AUTO` (дефолт) — предпочесть системные, при отсутствии — использовать вендорные/fetch.
+  - `SYSTEM` — требовать установленные системные библиотеки.
+  - `BUNDLED` — использовать поставляемый код из `libs/`.
+- Поддерживаемые зависимости (см. `cmake/deps/*.cmake`):
+  - `mdbx`, `nlohmann_json`, `zlib-ng`, `minizip-ng`, `zstd`, `simdcomp`, `vbyte`, `time-shield-cpp`, `gzip-hpp`, `fast_double_parser`, `fast_float`.
+- Добавление новых зависимостей требует отдельного обсуждения и задач; изменение `libs/` — только целевой задачей на обновление.
+
+## 10. Практические советы по доменам
+- `data`:
+  - Храните типы простыми и POD-совместимыми, избегайте тяжёлых зависимостей.
+  - При добавлении полей тиков/баров обновляйте сопутствующие флаги/маски и Doxygen.
+  - README тик-домена в `include/DataFeedHub/data/ticks/README-RU.md` должен отражать новые типы/флаги.
+- `compression`:
+  - Любой новый кодек требует теста «compress-decompress equals original» на типичных и граничных данных.
+  - Используйте `SerializeScratch` для временных буферов, избегайте `thread_local` контейнеров на Windows/MinGW.
+  - Сохраняйте обратную совместимость форматов; изменения формата — только через миграционную задачу.
+- `core`:
+  - При работе с `MarketDataBuffer` документируйте инварианты окон, смещения, правила вычисления спреда.
+  - Не тяните в `core` привязку к конкретным БД; всё, что специфично хранилищу, держите в `storage`.
+- `storage`:
+  - Поддерживайте флаги/метаданные в едином виде; изменения форматов хранения — через согласованную задачу.
+- `utils`:
+  - Не добавляйте бизнес-правила; только вспомогательные функции и обёртки.
+  - Проверяйте, что утилиты не создают зависимость от доменов выше по уровню.
+- `tests`:
+  - Тесты должны быть детерминированными и быстрыми; избегайте сетевых/файловых побочных эффектов.
+  - Для новых API — добавляйте тесты рядом с доменом (один файл может содержать несколько кейсов, но не смешивайте несвязанные домены).
+
+## 11. Краткий чек-лист перед коммитом
+- Публичные изменения:
+  - Doxygen-документация добавлена/обновлена.
+  - Umbrella-заголовки подключают новые типы.
+  - Добавлены тесты с типичным и граничным сценариями.
+  - Форматы хранения/компрессии не изменены (или оформлена миграционная задача).
+- Сборка/тесты:
+  - `cmake --build build-msvc --config Debug` успешен.
+  - `ctest -C Debug --output-on-failure` из `build-msvc` успешен.
+  - `build-tests-mingw.bat` успешен (при наличии MinGW).
+- Стиль/анализ:
+  - Нет новых варнингов на сборке.
+  - При необходимости прогнан `/analyze` или clang-tidy по изменённым файлам.
+- Репозиторий:
+  - Не закоммичены `build-*`, `.vs/`, `.vscode/`, `.sln/.vcxproj`, временные файлы.
+  - В `libs/` изменений нет (если не отдельная задача).
+
+## 12. Быстрые команды (для копирования в терминал)
+- Конфигурация MSVC (Debug, тесты включены, legacy тесты выключены):
+```
+cmake -S . -B build-msvc -G "Visual Studio 17 2022" -A x64 -DDFH_BUILD_TESTS=ON -DDFH_BUILD_LEGACY_TESTS=OFF
+```
+- Сборка и тесты MSVC:
+```
+cmake --build build-msvc --config Debug
+cd build-msvc
+ctest -C Debug --output-on-failure
+cd ..
+```
+- MinGW (через скрипт):
+```
+call build-tests-mingw.bat
+```
+- Единый прогон:
+```
+call run-all-tests.bat
+```
+- Включение legacy тестов при MinGW вручную:
+```
+cmake -S . -B build-tests-mingw -G "MinGW Makefiles" -DDFH_BUILD_TESTS=ON -DDFH_BUILD_LEGACY_TESTS=ON
+cmake --build build-tests-mingw
+cd build-tests-mingw
+ctest --output-on-failure
 ```
 
-## Naming Conventions
+## 13. Формальные требования к документации и тестам
+- Документация:
+  - Новые публичные символы описываются через `///` Doxygen; указывайте смысл, ограничения, исключения, инварианты и `\thread_safety`.
+  - Для шаблонов описывайте `\tparam`, для функций — все `\param` и `\return` (если не `void`).
+  - Текст — технический, без маркетинга; длина строки ~100–120 символов.
+- Тесты:
+  - При добавлении нового типа/алгоритма — как минимум один позитивный сценарий и один граничный/негативный.
+  - Для сериализации/компрессии — проверка идентичности после обратной операции.
+  - Тесты должны работать без внешних сервисов; использовать только локальные данные/буферы.
+  - При добавлении фичи, связанной с временем/часовыми поясами — учитывайте граничные значения (переполнения, DST).
 
-- Prefix `m_` is required for class fields (e.g., `m_event_hub`, `m_task_manager`).
-- Prefixes `p_` and `str_` are optional and can be used when a function or method has more than five variables or arguments of different types.
-- Boolean variables should start with `is`, `has`, `use`, `enable` or with `m_is_`, `m_has_`, etc. for class fields.
-- Do not use prefixes `b_`, `n_`, `f_`.
+## 14. Что делать, если нужно изменить форматы или deps
+- Форматы сжатия/хранения:
+  - Создать отдельную задачу с описанием миграции и совместимости.
+  - Обновить тесты, добавив кейсы старый→новый формат и обратную совместимость, если требуется.
+  - Зафиксировать изменения в README домена и Doxygen.
+- Зависимости (`libs/`, `cmake/deps/`):
+  - Обсудить необходимость, влияние на размер/платформы.
+  - Изменения в `libs/` — отдельный PR/коммит «update dependency X», с проверкой сборки на целевых toolchain.
+  - При добавлении нового CMake модуля — документировать опции и ожидаемые цели в этом файле.
 
-### Domain DTO Naming (all domains)
+## 15. Дополнительные замечания по Windows-специфике
+- Избегайте `thread_local` контейнеров STL в коде сериализации на Windows/MinGW — риск повреждения кучи при финализации потоков. Используйте `SerializeScratch` (inline-буфер `small[16]` + `std::vector<uint8_t> bytes`; возвращаемый `MDBX_val` валиден до следующего вызова).
+- Проверьте, что `NOMINMAX` определён до подключения `<windows.h>` — это уже задано в корневом CMake для MSVC, но не дублируйте избыточные определения.
+- Учитывайте различия выравнивания/packing структур между компиляторами; для бинарной совместимости формат фиксируйте явно.
 
-- Reuse the tick-domain naming template for every DTO-oriented domain:
-  - **DTO types:** `<Base><Suffix><Kind>`, where `Kind` is the domain noun (`Tick`, `Bar`, `Quote`, `Order`, etc.), `Base` is the entity (`Value`, `Market`, `Funding`), and `Suffix` is an optional short modifier (`Vol`, `L1`, `Agg`). Examples: `ValueTick`, `FundingRateBar`, `OrderBookL2Snapshot`.
-  - **Containers / algorithms:** `<Kind><Something>` to emphasize operations over that domain (e.g., `TickSequence`, `BarCompressorV2`, `OrderSerializer`).
-  - **Span aliases:** `<TypeName>Span` for zero-copy ranges, such as `ValueTickSpan`, `PriceBarSpan`, `OrderBookSnapshotSpan`.
-- For the tick domain, additional rationale and examples remain in `include/DataFeedHub/data/ticks/README-RU.md`; other domains should mirror this structure in their own READMEs when new DTO families appear.
+## 16. Справочные файлы и где смотреть примеры
+- README тик-домена: `include/DataFeedHub/data/ticks/README-RU.md` — пример описания флагов и типов.
+- Umbrella-заголовки (`data.hpp`, `compression.hpp`, `storage.hpp`, `transform.hpp`, `utils.hpp`) — пример того, как подключать доменные листовые файлы.
+- Тесты:
+  - `tests/test_dependencies.cpp` — минимальная проверка зависимостей.
+  - Legacy-тесты показывают пример использования кодеков/утилит (`test_vbyte_simdcomp.cpp`, `test_zip_utils.cpp` и т.п.).
+- CMake:
+  - `CMakeLists.txt` в корне — настройка стандартов, опций и зависимостей.
+  - `cmake/deps/*.cmake` — примеры использования `FetchContent`/find_package для внешних библиотек.
 
-### Constants and compile-time flags
-
-- **Preprocessor macros / feature toggles** use `UPPER_SNAKE_CASE` and usually include a project prefix, e.g., `DFH_USE_JSON`, `DFH_USE_NLOHMANN_JSON`, `DFH_STORAGE_ENABLE_MDBX`.
-- **`static constexpr` / `const` data inside classes and structs** also use `UPPER_SNAKE_CASE`, e.g., `TRADE_SIDE_BITS`, `DEFAULT_CAPACITY`.
-- When referencing those `static constexpr` / `const` members (or namespace-level constants), always qualify them with their scope (`TradeTick::TRADE_SIDE_BITS`, `ticks::TickCodecConfig::DEFAULT_CAPACITY`) to keep usage distinguishable from macros.
-- **Regular data members** keep `snake_case` names such as `price`, `time_ms`, `id_and_side`.
-- **Enum constants** use `CamelCase` (`Unknown`, `Buy`, `Sell`).
-
-## Feature toggles
-
-- `DFH_USE_JSON` enables JSON helpers across the code base. When this macro is not defined the library never includes any JSON headers and the serialization helpers are not compiled.
-- `DFH_USE_NLOHMANN_JSON` enables adapters built on top of [nlohmann/json](https://github.com/nlohmann/json). Define this macro together with `DFH_USE_JSON` to compile the `to_json`/`from_json` overloads and ADL serializers.
-- `DFH_USE_SIMDJSON` reserves hooks for simdjson-based readers/writers. Combine it with `DFH_USE_JSON` when integrating the fast DOM/on-demand parsers. Both JSON backends may coexist when desired.
-- Every domain that exposes DTOs must wrap its JSON serialization/deserialization helpers with these macros so that downstream projects can opt-in to JSON support explicitly.
-
-## Documentation / Doxygen Style Guide
-
-Applies to all C++11/14/17 sources in this repository.
-
-- Prefer triple-slash fences: `///`. Avoid `/** ... */` unless required.
-- Use backslash-style tags.
-- Lines should generally stay under 100–120 columns and remain concise, technical, and in English.
-- Do not start descriptions with "The".
-
-### Tag order
-
-Use the following ordering template:
-
-```text
-\brief
-\tparam (each template parameter)
-\param  (in function signature order)
-\return (exactly once for non-void)
-\throws
-\pre
-\post
-\invariant
-\complexity
-\thread_safety
-\note / \warning
-```
-
-- Every function parameter must have a matching `\param` with the same name and order.
-- Every template parameter must have a matching `\tparam`.
-- Non-void functions must document the return value with a single `\return`.
-- Use `\throws` for each exception type.
-- Add `\pre` and `\post` when meaningful, `\invariant` for class invariants.
-- Document algorithmic complexity via `\complexity`.
-- State `\thread_safety` as one of: "Thread-safe", "Not thread-safe", or "Conditionally thread-safe: …".
-- Employ `\note` and `\warning` as needed.
-- Public-facing docs should avoid unnecessary internal layout details.
-
-### Examples
-
-```cpp
-/// \brief Resize canvas to the target dimensions.
-/// \param w Width in pixels.
-/// \param h Height in pixels.
-/// \pre w >= 0 && h >= 0.
-/// \post New size equals (w, h).
-void resize(int w, int h);
-
-/// \brief Computes 64-bit hash of the input.
-/// \tparam T Input type supporting contiguous byte access.
-/// \param data Input value.
-/// \return 64-bit hash.
-/// \complexity O(n) over input size.
-/// \thread_safety Not thread-safe.
-template<class T>
-uint64_t hash(const T& data);
-```
-
-**Compliance:** If legacy comments conflict with this guide, this section overrides them for new or updated code.
-
-## File Names
-
-- If a file contains only one class, use `CamelCase` (e.g., `TradeManager.hpp`).
-- If a file contains multiple classes, utilities, or helper structures, use `snake_case` (e.g., `trade_utils.hpp`, `market_event_listener.hpp`).
-
-## Entity Names
-
-- Class, struct, and enum names use `CamelCase`.
-- Method names use `snake_case`.
-
-## Method Naming
-
-- Methods should be named in `snake_case`.
-- Getter methods may omit the `get_` prefix when they simply return a reference or value or when they provide access to an internal object and behave like a property (e.g., `size()`, `empty()`).
-- Use the `get_` prefix when the method performs computations to produce the returned value or when omitting `get_` would be misleading.
-
-## Avoiding problematic thread_local usage
-
-### Thread-local issue and SerializeScratch
-
-Originally, temporary buffers for serialization used `thread_local` STL containers
-(e.g., `std::vector<uint8_t>`). On Windows/MinGW this led to **heap corruption**
-and random crashes at thread shutdown, because:
-
-- `thread_local` destructors run when the CRT/heap may already be partially finalized
-- STL containers may free memory using a different heap arena than the one they were created in
-- destructor order across `thread_local` objects is not guaranteed
-
-To fix this, we replaced all `thread_local` STL buffers with a dedicated helper:
-
-```cpp
-struct SerializeScratch {
-    alignas(8) unsigned char small[16];
-    std::vector<uint8_t> bytes;
-    // ...
-};
-```
-
-* `small[16]` provides a stack-like inline buffer for INTEGERKEY and other small values
-* `bytes` is used for larger or variable-sized data, owned by the calling scope
-* Returned `MDBX_val` is valid only until the next serialization call on the same scratch
-
-This approach removes dependency on `thread_local` destructors, is portable across compilers,
-and avoids MinGW-specific runtime crashes.
-
-Prefer this `SerializeScratch`-style approach over `thread_local` STL containers everywhere in the code base.
-
-## Testing standard
-
-- Always configure and run the CMake tests with the C++17 standard (or newer) enabled. Never drop below C++17.
-
-## Domain-driven design (DDD)
-
-The library is structured using DDD. High-level namespaces map to the domain boundaries:
-
-```
-include/
-└── DataFeedHub/
-    ├── compression/
-    │   ├── bars/
-    │   ├── bars.hpp
-    │   ├── ticks/
-    │   ├── ticks.hpp
-    │   ├── utils/
-    │   └── utils.hpp
-    ├── compression.hpp
-    ├── core/
-    │   ├── data_feed/
-    │   └── funding/
-    ├── data/
-    │   ├── bars/
-    │   ├── bars.hpp
-    │   ├── common/
-    │   ├── common.hpp
-    │   ├── funding/
-    │   ├── funding.hpp
-    │   ├── ticks/
-    │   ├── ticks.hpp
-    │   ├── trading/
-    │   └── trading.hpp
-    ├── data.hpp
-    ├── dfh.hpp
-    ├── storage/
-    │   ├── common/
-    │   │   ├── enums.hpp
-    │   │   ├── flags.hpp
-    │   │   ├── interfaces/
-    │   │   │   ├── IConfig.hpp
-    │   │   │   ├── IConnection.hpp
-    │   │   │   ├── IMarketDataStorage.hpp
-    │   │   │   └── ITransaction.hpp
-    │   │   ├── interfaces.hpp
-    │   ├── common.hpp
-    │   ├── factory.hpp
-    │   ├── mdbx/
-    │   ├── mdbx.hpp
-    │   ├── sqlite3/
-    │   └── sqlite3.hpp
-    ├── storage.hpp
-    ├── transform/
-    ├── transform.hpp
-    ├── utils/
-    └── utils.hpp
-```
-
-When adding new features, align them with the relevant domain layer and keep boundaries clean.
-
-## Umbrella headers
-
-To speed up compilation of this header-only library, create umbrella headers for each domain area (e.g., `ticks.hpp` gathers required dependencies for all tick-related structures). Prefer including the umbrella header at call sites instead of individual low-level headers to reduce repetitive include graphs.
-
-- When a domain is expected to be consumed **only** through its umbrella header, move every transitive dependency (STL headers, cross-domain enums, local helpers, etc.) into the umbrella header. Leaf headers inside that domain should avoid `#include` statements entirely so that the umbrella controls ordering and compilation cost.
-- Composite headers (where a single file defines a class along with its helpers, inline implementation, or nested utilities) may still include neighboring files from the same domain, because that header already acts as a small umbrella for its implementation details.
-- When in doubt, default to “umbrella owns dependencies”: assume a leaf header is not meant to be included directly unless explicitly documented otherwise.
+## 17. Если возник вопрос
+- Проверьте этот файл: секции про домены, сборку, запреты и требования к изменениям.
+- Загляните в README доменов (`include/DataFeedHub/data/ticks/README-RU.md`) при работе с тиками.
+- При сомнениях по зависимостям — смотрите соответствующий модуль в `cmake/deps/` и опции `DFH_DEPS_*_MODE`.
+- Если требуется изменить внешний формат/зависимость — поднимайте отдельную задачу и фиксируйте миграционный план.
