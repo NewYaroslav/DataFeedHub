@@ -70,15 +70,66 @@ DataFeedHub — заголовочная C++ библиотека (CMake INTERFA
 - `tests/` — тесты CMake:
   - Всегда собирается `test_dependencies` (проверка связности зависимостей).
   - При `DFH_BUILD_LEGACY_TESTS=ON` добавляются `test_dynamic_bitset`, `test_frequency_encoding`, `test_market_data_storage`, `test_vbyte_simdcomp`, `test_zip_utils`.
-- `cmake/` и `cmake/deps/` — модули для зависимостей: `helpers.cmake`, `mdbx.cmake`, `nlohmann_json.cmake`, `zlib_ng.cmake`, `minizip_ng.cmake`, `zstd.cmake`, `simdcomp.cmake`, `vbyte.cmake`, `time_shield_cpp.cmake`, `gzip_hpp.cmake`, `fast_double_parser.cmake`, `fast_float.cmake`.
-- `libs/` — вендорные зависимости (не править в фичевых задачах).
+- `cmake/` и `cmake/deps/` - модули для зависимостей: `helpers.cmake`, `mdbx.cmake`, `nlohmann_json.cmake`, `zlib_ng.cmake`, `minizip_ng.cmake`, `zstd.cmake`, `simdcomp.cmake`, `vbyte.cmake`, `time_shield_cpp.cmake`, `gzip_hpp.cmake`, `fast_double_parser.cmake`, `fast_float.cmake`.
+- `libs/` - вендорные зависимости (не править в фичевых задачах).
 - Скрипты в корне: `build-tests-mingw.bat`, `run-all-tests.bat`, `build-cb.bat`, `build-libs.bat`.
-- Каталоги `build-*`, `.vs/`, `.vscode/`, локальные IDE артефакты — личные, не коммитятся.
+- Каталоги `build-*`, `.vs/`, `.vscode/`, локальные IDE артефакты - личные, не коммитятся.
+
+### 4.1 Навигация по include/ (наглядно)
+```
+include/
+└── DataFeedHub/
+    ├── compression/
+    │   ├── bars/
+    │   ├── bars.hpp
+    │   ├── ticks/
+    │   ├── ticks.hpp
+    │   ├── utils/
+    │   └── utils.hpp
+    ├── compression.hpp
+    ├── core/
+    │   ├── data_feed/
+    │   └── funding/
+    ├── data/
+    │   ├── bars/
+    │   ├── bars.hpp
+    │   ├── common/
+    │   ├── common.hpp
+    │   ├── funding/
+    │   ├── funding.hpp
+    │   ├── ticks/
+    │   ├── ticks.hpp
+    │   ├── trading/
+    │   └── trading.hpp
+    ├── data.hpp
+    ├── dfh.hpp
+    ├── storage/
+    │   ├── common/
+    │   │   ├── enums.hpp
+    │   │   ├── flags.hpp
+    │   │   ├── interfaces/
+    │   │   │   ├── IConfig.hpp
+    │   │   │   ├── IConnection.hpp
+    │   │   │   ├── IMarketDataStorage.hpp
+    │   │   │   └── ITransaction.hpp
+    │   │   ├── interfaces.hpp
+    │   ├── common.hpp
+    │   ├── factory.hpp
+    │   ├── mdbx/
+    │   ├── mdbx.hpp
+    │   ├── sqlite3/
+    │   └── sqlite3.hpp
+    ├── storage.hpp
+    ├── transform/
+    ├── transform.hpp
+    ├── utils/
+    └── utils.hpp
+```
 
 ## 5. Сборка и тесты (Windows: MSVC + MinGW)
 Общий таргет: `DataFeedHub` (INTERFACE), `cxx_std_17`, include для `include/` и `tests/`. Опции:
-- `DFH_BUILD_TESTS` — по умолчанию `ON`, включает сборку тестов.
-- `DFH_BUILD_LEGACY_TESTS` — по умолчанию `OFF`, поднимает дополнительные регрессионные тесты.
+- `DFH_BUILD_TESTS` - по умолчанию `ON`, включает сборку тестов.
+- `DFH_BUILD_LEGACY_TESTS` - по умолчанию `OFF`, поднимает дополнительные регрессионные тесты.
 - `DFH_SDK_BUNDLE_DEPS` — установка вендорных deps при сборке SDK.
 - `DFH_DEPS_MODE` и `DFH_DEPS_*_MODE` (`INHERIT|AUTO|SYSTEM|BUNDLED`) управляют источниками зависимостей.
 
@@ -143,6 +194,30 @@ DataFeedHub — заголовочная C++ библиотека (CMake INTERFA
   3. Стиль и рекомендации.
 - При добавлении нового кода желательно указывать `\thread_safety` в Doxygen (`Thread-safe`, `Not thread-safe` или условное описание), чтобы статанализ и ревьюеры понимали модель памяти.
 
+### 6.1 Константы и compile-time флаги
+- Препроцессорные макросы/фичетогглы именуются в `UPPER_SNAKE_CASE` с префиксом проекта, например `DFH_USE_JSON`, `DFH_USE_NLOHMANN_JSON`, `DFH_STORAGE_ENABLE_MDBX`.
+- `static constexpr`/`const` данные внутри классов/структур также в `UPPER_SNAKE_CASE`, например `TRADE_SIDE_BITS`, `DEFAULT_CAPACITY`.
+- При использовании таких `static constexpr`/`const` (и namespace-level констант) всегда указывайте область видимости (`TradeTick::TRADE_SIDE_BITS`, `ticks::TickCodecConfig::DEFAULT_CAPACITY`), чтобы отличать их от макросов.
+- Обычные поля данных именуются в `snake_case`: `price`, `time_ms`, `id_and_side`.
+- Значения enum оформляются в `CamelCase` (`Unknown`, `Buy`, `Sell`).
+
+### 6.2 Именование переменных и DTO
+- Поля классов/структур обязательного префикса `m_` (`m_event_hub`, `m_task_manager`).
+- Префиксы `p_` и `str_` необязательны; используйте их только когда в функции/методе >5 параметров/локальных переменных разных типов, чтобы улучшить читаемость.
+- Булевы переменные начинаются с `is`/`has`/`use`/`enable`; для полей — с учётом `m_` (`m_is_enabled`, `has_data`).
+- Не используйте префиксы `b_`, `n_`, `f_`.
+- DTO-домены переиспользуют паттерн тик-домена:
+  - Типы DTO: `<Base><Suffix><Kind>`, где `Kind` — доменная сущность (`Tick`, `Bar`, `Quote`, `Order` и т.п.), `Base` — объект (`Value`, `Market`, `Funding`), `Suffix` — опциональный модификатор (`Vol`, `L1`, `Agg`). Примеры: `ValueTick`, `FundingRateBar`, `OrderBookL2Snapshot`.
+  - Контейнеры/алгоритмы: `<Kind><Something>` для акцента на операциях (`TickSequence`, `BarCompressorV2`, `OrderSerializer`).
+  - Span-алиасы: `<TypeName>Span` для zero-copy диапазонов (`ValueTickSpan`, `PriceBarSpan`, `OrderBookSnapshotSpan`).
+- Для тик-домена подробности и примеры в `include/DataFeedHub/data/ticks/README-RU.md`; новые DTO в других доменах документируются аналогично в README домена.
+
+### 6.3 Feature toggles (JSON)
+- `DFH_USE_JSON` включает JSON-хелперы: при отсутствии макроса библиотека не инклюдит JSON-заголовки и не компилирует сериализацию.
+- `DFH_USE_NLOHMANN_JSON` активирует адаптеры на [nlohmann/json]; задавайте вместе с `DFH_USE_JSON` для сборки `to_json`/`from_json` и ADL-сериализаторов.
+- `DFH_USE_SIMDJSON` резервирует хуки под simdjson-парсеры; комбинируйте с `DFH_USE_JSON`. Допускается одновременное подключение двух JSON-бэкендов.
+- Домены, экспортирующие DTO, должны оборачивать свои JSON-хелперы этими макросами, чтобы потребители могли явно включать поддержку JSON.
+
 ## 7. Требования к изменениям (тесты и документация)
 - Любое новое публичное API (`include/DataFeedHub/**`: структуры тиков/баров, функции, классы, шаблоны) обязательно сопровождается:
   - Тестами в `tests/**`: минимум один типичный сценарий и 1–2 граничных. Для компрессии — кейс «сжали → разжали → получили идентичные данные».
@@ -175,11 +250,16 @@ DataFeedHub — заголовочная C++ библиотека (CMake INTERFA
   - Убедиться, что новые публичные типы доступны через umbrella-заголовки.
 - Ревью: проверяется соблюдение границ доменов, отсутствие циклов зависимостей, наличие тестов/документации, сохранение обратной совместимости форматов.
 
+### 8.1 Git commit convention
+- История следует Conventional Commits: `type(scope): short message`.
+- `type`/`scope` пишем на английском: `fix`, `refactor`, `feat`, `docs`, `test`, `example` и др.; scope опционален (`fix(include):`, `refactor(storage):`).
+- Сообщение короткое и повелительное: `fix(include): remove redundant header`, `refactor(storage): simplify transaction logic`. Описание можно дополнять на русском в теле коммита при необходимости.
+
 ## 9. Работа с зависимостями
 - Управление через CMake опции `DFH_DEPS_MODE` и `DFH_DEPS_*_MODE` (`INHERIT|AUTO|SYSTEM|BUNDLED`):
-  - `AUTO` (дефолт) — предпочесть системные, при отсутствии — использовать вендорные/fetch.
-  - `SYSTEM` — требовать установленные системные библиотеки.
-  - `BUNDLED` — использовать поставляемый код из `libs/`.
+  - `AUTO` (дефолт) - предпочесть системные, при отсутствии - использовать вендорные/fetch.
+  - `SYSTEM` - требовать установленные системные библиотеки.
+  - `BUNDLED` - использовать поставляемый код из `libs/`.
 - Поддерживаемые зависимости (см. `cmake/deps/*.cmake`):
   - `mdbx`, `nlohmann_json`, `zlib-ng`, `minizip-ng`, `zstd`, `simdcomp`, `vbyte`, `time-shield-cpp`, `gzip-hpp`, `fast_double_parser`, `fast_float`.
 - Добавление новых зависимостей требует отдельного обсуждения и задач; изменение `libs/` — только целевой задачей на обновление.
@@ -253,11 +333,29 @@ ctest --output-on-failure
 ## 13. Формальные требования к документации и тестам
 - Документация:
   - Новые публичные символы описываются через `///` Doxygen; указывайте смысл, ограничения, исключения, инварианты и `\thread_safety`.
-  - Для шаблонов описывайте `\tparam`, для функций — все `\param` и `\return` (если не `void`).
-  - Текст — технический, без маркетинга; длина строки ~100–120 символов.
+  - Для шаблонов описывайте `\tparam`, для функций - все `\param` и `\return` (если не `void`).
+  - Текст - технический, без маркетинга; длина строки ~100-120 символов.
+  - Пример оформления тега и очередности параметров:
+  ```
+  /// \brief Resize canvas to the target dimensions.
+  /// \param w Width in pixels.
+  /// \param h Height in pixels.
+  /// \pre w >= 0 && h >= 0.
+  /// \post New size equals (w, h).
+  void resize(int w, int h);
+
+  /// \brief Computes 64-bit hash of the input.
+  /// \tparam T Input type supporting contiguous byte access.
+  /// \param data Input value.
+  /// \return 64-bit hash.
+  /// \complexity O(n) over input size.
+  /// \thread_safety Not thread-safe.
+  template<class T>
+  uint64_t hash(const T& data);
+  ```
 - Тесты:
-  - При добавлении нового типа/алгоритма — как минимум один позитивный сценарий и один граничный/негативный.
-  - Для сериализации/компрессии — проверка идентичности после обратной операции.
+  - При добавлении нового типа/алгоритма - как минимум один позитивный сценарий и один граничный/негативный.
+  - Для сериализации/компрессии - проверка идентичности после обратной операции.
   - Тесты должны работать без внешних сервисов; использовать только локальные данные/буферы.
   - При добавлении фичи, связанной с временем/часовыми поясами — учитывайте граничные значения (переполнения, DST).
 
