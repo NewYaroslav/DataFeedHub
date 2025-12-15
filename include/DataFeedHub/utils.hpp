@@ -3,11 +3,10 @@
 #define _DFH_UTILS_HPP_INCLUDED
 
 /// \file utils.hpp
-/// \brief Aggregated include file for all utility modules used in DataFeedHub.
-///
-/// This header includes various low-level utility components such as symbol parsing,
-/// memory alignment, SIMD optimizations, fixed-point math, compression, string helpers,
-/// and exchange-specific parsers.
+/// \brief Единственная точка подключения для вспомогательных утилит DataFeedHub.
+/// \details Собирает мелкие компоненты без доменной логики: парсеры символов и бирж,
+/// SIMD/выравнивание, фиксированную арифметику, работу со строками и битовыми масками,
+/// используемые другими доменами библиотеки.
 
 //------------------------------------------------------------------------------
 // Utility domain

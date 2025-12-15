@@ -3,7 +3,7 @@
 #define _DFH_DATA_COMMON_HPP_INCLUDED
 
 /// \file common.hpp
-/// \brief Aggregates common enumerations and data types used across the data module.
+/// \brief Содержит общие перечисления и типы, используемые во всех компонентах домена data.
 
 #include "common/enums.hpp"
 

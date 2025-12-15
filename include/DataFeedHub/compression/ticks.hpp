@@ -3,7 +3,7 @@
 #define _DFH_COMPRESSION_TICKS_HPP_INCLUDED
 
 /// \file ticks.hpp
-/// \brief Aggregated entry point for tick compression components.
+/// \brief Точка подключения компонентов компрессии тиков.
 
 #include "ticks/ITickSerializer.hpp"
 #include "ticks/TickCompressorV1.hpp"

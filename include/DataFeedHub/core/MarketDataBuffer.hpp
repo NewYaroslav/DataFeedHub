@@ -3,10 +3,11 @@
 #define _DTH_MARKET_DATA_BUFFER_HPP_INCLUDED
 
 /// \file MarketDataBuffer.hpp
-/// \brief
+/// \brief Буфер рыночных данных с поддержкой подписок на тики и таймерные события.
 
 namespace dfh::core {
 
+    /// \brief Типы событий, которые может производить буфер данных.
     enum class EventType : uint64_t {
         NONE           = 0,
         TICK_UPDATE    = 1 << 0, // Обновление тиков
@@ -19,7 +20,7 @@ namespace dfh::core {
         REALTIME_STOP  = 1 << 7  // Завершение работы в реал-тайме
     };
 
-    /// \brief Структура для хранения информации о подписке
+    /// \brief Хранит состояние подписки, её указатель и маску событий.
     struct Subscription {
         void* data_ptr;             ///< Указатель на данные
         uint32_t count;             ///< Счетчик подписок
@@ -29,6 +30,9 @@ namespace dfh::core {
             : subscription_count(1), data_ptr(data), event_flags(flags) {}
     };
 
+    /// \brief Инкапсулирует буфер тиков для каждой пары символ/провайдер.
+    /// \details Инициализируется от `IMarketDataSource` и обеспечивает выборку
+    /// тиков, установку временных диапазонов и доставку уведомлений подписчикам.
     class MarketDataBuffer {
     public:
 
@@ -42,6 +46,10 @@ namespace dfh::core {
             }
         }
 
+        /// \brief Устанавливает видимый диапазон времени для буфера тиков по индексу данных.
+        /// \param data_index Индекс комбинации символ + провайдер.
+        /// \param start_time_ms Начало интервала (в мс от эпохи).
+        /// \param end_time_ms Конец интервала (в мс от эпохи).
         void set_tick_span(size_t data_index, uint64_t start_time_ms, uint64_t end_time_ms) {
             m_tick_buffers[data_index].set_tick_span(start_time_ms, end_time_ms);
         }
@@ -69,6 +77,8 @@ namespace dfh::core {
         }
 
 
+        /// \brief Пробегает по подпискам и удаляет те, у которых истёк счётчик.
+        /// \param time_ms Текущее время в миллисекундах.
         void update(uint64_t time_ms) {
             auto it = m_subscriptions.begin();
             while (it != m_subscriptions.end()) {
@@ -80,6 +90,9 @@ namespace dfh::core {
             }
         }
 
+        /// \brief Запрашивает свежие тики от источника для конкретного индекса данных.
+        /// \param index Отдельный индекс символ/провайдер.
+        /// \param time_ms Метка времени запроса в миллисекундах.
         void fetch_ticks(uint32_t index, uint64_t time_ms) {
             m_tick_buffers[index].fetch_ticks(index, time_ms, m_data_source);
         }

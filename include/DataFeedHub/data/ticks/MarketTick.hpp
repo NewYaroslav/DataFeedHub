@@ -3,32 +3,32 @@
 #define _DFH_DATA_MARKET_TICK_HPP_INCLUDED
 
 /// \file MarketTick.hpp
-/// \brief Defines the MarketTick structure and helpers for JSON serialization.
+/// \brief Описывает структуру MarketTick из домена data и её JSON-помощники.
 
 namespace dfh {
 
     /// \struct MarketTick
-    /// \brief Represents a single market tick with time, price, volume, and update flags.
+    /// \brief Содержит временные метки, цены, объёмы и флаги обновлений для одного тика.
     struct MarketTick {
-        std::uint64_t time_ms{0};      ///< Timestamp of the tick (ms since Unix epoch).
-        std::uint64_t received_ms{0};  ///< Timestamp when the tick was received (ms since Unix epoch).
-        double ask{0.0};               ///< Best ask price.
-        double bid{0.0};               ///< Best bid price.
-        double last{0.0};              ///< Last trade price.
-        double volume{0.0};            ///< Trade volume in base asset (optional).
-        TickUpdateFlags flags{TickUpdateFlags::NONE}; ///< Flags indicating which fields were updated.
+        std::uint64_t time_ms{0};      ///< Временная метка тика (мс от эпохи Unix).
+        std::uint64_t received_ms{0};  ///< Время получения тика (мс от эпохи Unix).
+        double ask{0.0};               ///< Цена лучшего запроса.
+        double bid{0.0};               ///< Цена лучшего предложения.
+        double last{0.0};              ///< Цена последней сделки.
+        double volume{0.0};            ///< Объём сделки в базовых единицах (по умолчанию 0).
+        TickUpdateFlags flags{TickUpdateFlags::NONE}; ///< Маска флагов обновлений полей.
 
-        /// \brief Default constructor.
+        /// \brief Конструктор по умолчанию.
         constexpr MarketTick() noexcept = default;
 
-        /// \brief Full constructor for MarketTick.
-        /// \param time Timestamp of the tick (in ms since Unix epoch).
-        /// \param received Timestamp when the tick was received (ms since Unix epoch).
-        /// \param ask_price Best ask price at the time of the tick.
-        /// \param bid_price Best bid price at the time of the tick.
-        /// \param last_price Last trade price at the time of the tick.
-        /// \param volume_value Trade volume in base asset units.
-        /// \param flag_mask Update flags indicating which fields were changed.
+        /// \brief Полный конструктор с указанием времени, цен и флагов.
+        /// \param time Временная метка тика (мс с начала эпохи Unix).
+        /// \param received Время получения тика (мс с начала эпохи Unix).
+        /// \param ask_price Цена лучшего запроса при поступлении тика.
+        /// \param bid_price Цена лучшего предложения при поступлении тика.
+        /// \param last_price Цена последней сделки на момент тика.
+        /// \param volume_value Объём сделки в единицах базового актива.
+        /// \param flag_mask Маска флагов, описывающая, какие поля обновились.
         constexpr MarketTick(std::uint64_t time,
                              std::uint64_t received,
                              double ask_price,
@@ -44,21 +44,21 @@ namespace dfh {
             , volume(volume_value)
             , flags(flag_mask) {}
 
-        /// \brief Sets a specific flag in the tick's update flags.
-        /// \param flag The flag to set.
+        /// \brief Устанавливает конкретный флаг обновления.
+        /// \param flag Флаг, который необходимо включить.
         constexpr void set_flag(TickUpdateFlags flag) noexcept { flags |= flag; }
 
-        /// \brief Conditionally sets or clears a flag in the tick's update flags.
-        /// \param flag The flag to modify.
-        /// \param value True to set the flag, false to clear it.
+        /// \brief Устанавливает или сбрасывает флаг по булеву значению.
+        /// \param flag Флаг, который нужно обновить.
+        /// \param value true – устанавливает флаг, false – сбрасывает.
         constexpr void set_flag(TickUpdateFlags flag, bool value) noexcept {
             if (value) flags |= flag;
             else flags &= ~flag;
         }
 
-        /// \brief Checks if a specific update flag is set.
-        /// \param flag The flag to check.
-        /// \return True if the flag is set, false otherwise.
+        /// \brief Проверяет, установлен ли флаг обновления.
+        /// \param flag Флаг для проверки.
+        /// \return true, если флаг установлен, иначе false.
         [[nodiscard]] constexpr bool has_flag(TickUpdateFlags flag) const noexcept {
             return (flags & flag) != TickUpdateFlags::NONE;
         }
@@ -69,10 +69,10 @@ namespace dfh {
 
 #if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 
-    /// \brief Serializes a MarketTick to JSON.
-    /// \param j JSON object to populate.
-    /// \param tick MarketTick instance to serialize.
-    /// \details Fields with default values (received_ms=0, volume=0.0, flags=NONE) are omitted.
+    /// \brief Сериализует MarketTick в JSON.
+    /// \param j Объект JSON, который заполняется.
+    /// \param tick Tick для сериализации.
+    /// \details Поля с дефолтными значениями (received_ms=0, volume=0.0, flags=NONE) опускаются.
     inline void to_json(nlohmann::json& j, const MarketTick& tick) {
         j = nlohmann::json{
             {"time_ms", tick.time_ms},
@@ -92,9 +92,9 @@ namespace dfh {
         }
     }
 
-    /// \brief Deserializes a MarketTick from JSON.
-    /// \param j JSON object containing the serialized tick.
-    /// \param tick MarketTick instance to populate.
+    /// \brief Десериализует MarketTick из JSON.
+    /// \param j JSON-объект с описанием тика.
+    /// \param tick Структура, которую нужно заполнить.
     inline void from_json(const nlohmann::json& j, MarketTick& tick) {
         j.at("time_ms").get_to(tick.time_ms);
         j.at("ask").get_to(tick.ask);
@@ -119,7 +119,7 @@ namespace dfh {
 
 #if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 
-/// \brief Specializations for serializing containers of MarketTick.
+/// \brief Специализации сериализации контейнеров MarketTick.
 namespace nlohmann {
 
     template <>

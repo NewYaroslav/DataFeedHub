@@ -3,34 +3,34 @@
 #define _DFH_DATA_TRADE_TICK_HPP_INCLUDED
 
 /// \file TradeTick.hpp
-/// \brief Defines TradeTick structure and helpers for trade metadata packing.
+/// \brief Описывает TradeTick и вспомогательные утилиты для упаковки метаданных сделок.
 
 namespace dfh {
 
     /// \struct TradeTick
-    /// \brief Trade DTO with tightly packed trade identifier and aggressor side.
-    /// \warning Trade identifier must fit into 61 bits; higher bits are truncated by the mask.
-    /// \note Upper three bits store TradeSide; values outside 0..7 are truncated by the mask as well.
+    /// \brief DTO сделки с упакованными идентификатором и направлением агрессора.
+    /// \warning Идентификатор сделки должен укладываться в 61 бит; старшие биты обрезаются маской.
+    /// \note Старшие три бита хранят TradeSide; значения вне диапазона 0..7 также обрезаются.
     struct TradeTick {
-        static constexpr std::uint64_t TRADE_SIDE_BITS = 3;             ///< Bits reserved for TradeSide.
-        static constexpr std::uint64_t TRADE_SIDE_SHIFT = 61;           ///< Bit shift for TradeSide (upper bits).
-        static constexpr std::uint64_t TRADE_SIDE_MASK = (std::uint64_t{1} << TRADE_SIDE_BITS) - 1; ///< Mask of TradeSide bits.
-        static constexpr std::uint64_t TRADE_ID_MASK = (std::uint64_t{1} << TRADE_SIDE_SHIFT) - 1;  ///< Mask of trade id bits.
+        static constexpr std::uint64_t TRADE_SIDE_BITS = 3;             ///< Биты, отведённые под TradeSide.
+        static constexpr std::uint64_t TRADE_SIDE_SHIFT = 61;           ///< Смещение битов TradeSide (старшие разряды).
+        static constexpr std::uint64_t TRADE_SIDE_MASK = (std::uint64_t{1} << TRADE_SIDE_BITS) - 1; ///< Маска битов TradeSide.
+        static constexpr std::uint64_t TRADE_ID_MASK = (std::uint64_t{1} << TRADE_SIDE_SHIFT) - 1;  ///< Маска идентификатора сделки.
 
-        double price{0.0};        ///< Trade price.
-        double volume{0.0};       ///< Trade volume.
-        std::uint64_t time_ms{0}; ///< Trade timestamp in milliseconds.
-        std::uint64_t id_and_side{0}; ///< Packed trade id and side information.
+        double price{0.0};        ///< Цена сделки.
+        double volume{0.0};       ///< Объём сделки.
+        std::uint64_t time_ms{0}; ///< Временная метка сделки в миллисекундах.
+        std::uint64_t id_and_side{0}; ///< Упакированный идентификатор и направление.
 
-        /// \brief Default constructor.
+        /// \brief Конструктор по умолчанию.
         constexpr TradeTick() noexcept = default;
 
-        /// \brief Full constructor.
-        /// \param trade_price Trade price.
-        /// \param trade_volume Trade volume.
-        /// \param trade_time Trade timestamp (milliseconds since Unix epoch).
-        /// \param trade_id Numeric trade identifier (<= 61 bits; higher bits truncated).
-        /// \param side Aggressor direction of the trade (expects values 0..7).
+        /// \brief Полный конструктор с упакованным идентификатором и направлением.
+        /// \param trade_price Цена сделки.
+        /// \param trade_volume Объём сделки.
+        /// \param trade_time Временная метка сделки в миллисекундах от эпохи Unix.
+        /// \param trade_id Числовой идентификатор сделки (<= 61 бит, старшие биты отбрасываются).
+        /// \param side Направление агрессора (ожидается 0..7).
         constexpr TradeTick(double trade_price,
                             double trade_volume,
                             std::uint64_t trade_time,
@@ -41,58 +41,58 @@ namespace dfh {
             , time_ms(trade_time)
             , id_and_side(pack_id_and_side(trade_id, side)) {}
 
-        /// \brief Extracts the trade identifier.
-        /// \return Trade identifier stripped from side bits.
+        /// \brief Извлекает идентификатор сделки.
+        /// \return Идентификатор сделки без битов направления.
         [[nodiscard]] constexpr std::uint64_t trade_id() const noexcept {
             return extract_trade_id(id_and_side);
         }
 
-        /// \brief Extracts the aggressor side.
-        /// \return TradeSide stored in the packed field.
+        /// \brief Извлекает направление агрессора.
+        /// \return Значение TradeSide из упакованной области.
         [[nodiscard]] constexpr TradeSide trade_side() const noexcept {
             return extract_trade_side(id_and_side);
         }
 
-        /// \brief Updates the packed field with both trade id and side.
-        /// \param trade_id Trade identifier.
-        /// \param side Aggressor side.
+        /// \brief Записывает одновременно идентификатор и направление в упаковку.
+        /// \param trade_id Идентификатор сделки.
+        /// \param side Направление агрессора.
         constexpr void set_trade(std::uint64_t trade_id, TradeSide side) noexcept {
             id_and_side = pack_id_and_side(trade_id, side);
         }
 
-        /// \brief Updates only the trade identifier portion.
-        /// \param trade_id Trade identifier to store.
+        /// \brief Обновляет только часть с идентификатором.
+        /// \param trade_id Идентификатор сделки для записи.
         constexpr void set_trade_id(std::uint64_t trade_id) noexcept {
             id_and_side = (id_and_side & ~TRADE_ID_MASK) | (trade_id & TRADE_ID_MASK);
         }
 
-        /// \brief Updates only the trade side portion.
-        /// \param side Aggressor side to store.
+        /// \brief Обновляет только часть с направлением.
+        /// \param side Направление агрессора для записи.
         constexpr void set_trade_side(TradeSide side) noexcept {
             const auto side_bits = (static_cast<std::uint64_t>(side) & TRADE_SIDE_MASK) << TRADE_SIDE_SHIFT;
             id_and_side = (id_and_side & TRADE_ID_MASK) | side_bits;
         }
 
-        /// \brief Helper that packs id and side into the storage layout.
-        /// \param trade_id Trade identifier to pack.
-        /// \param side Trade side to pack.
-        /// \return Packed representation.
+        /// \brief Упаковывает идентификатор и направление в компактное представление.
+        /// \param trade_id Идентификатор сделки для упаковки.
+        /// \param side Направление агрессора.
+        /// \return Упакованное значение.
         [[nodiscard]] static constexpr std::uint64_t pack_id_and_side(std::uint64_t trade_id,
                                                                      TradeSide side) noexcept {
             return (trade_id & TRADE_ID_MASK)
                  | ((static_cast<std::uint64_t>(side) & TRADE_SIDE_MASK) << TRADE_SIDE_SHIFT);
         }
 
-        /// \brief Extracts trade identifier from packed storage.
-        /// \param encoded Packed id+side value.
-        /// \return Trade identifier.
+        /// \brief Достаёт идентификатор сделки из упакованного значения.
+        /// \param encoded Упакованный идентификатор + направление.
+        /// \return Идентификатор сделки.
         [[nodiscard]] static constexpr std::uint64_t extract_trade_id(std::uint64_t encoded) noexcept {
             return encoded & TRADE_ID_MASK;
         }
 
-        /// \brief Extracts trade side from packed storage.
-        /// \param encoded Packed id+side value.
-        /// \return Trade side.
+        /// \brief Достаёт направление агрессора из упакованного значения.
+        /// \param encoded Упакованное значение id+side.
+        /// \return Направление сделки.
         [[nodiscard]] static constexpr TradeSide extract_trade_side(std::uint64_t encoded) noexcept {
             return static_cast<TradeSide>((encoded >> TRADE_SIDE_SHIFT) & TRADE_SIDE_MASK);
         }
@@ -104,9 +104,9 @@ namespace dfh {
 
 #if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 
-    /// \brief Serializes TradeTick to JSON.
-    /// \param j JSON destination object.
-    /// \param tick TradeTick to serialize.
+    /// \brief Сериализует TradeTick в JSON.
+    /// \param j Объект JSON, который будет заполнен.
+    /// \param tick Сделка для сериализации.
     inline void to_json(nlohmann::json& j, const TradeTick& tick) {
         j = nlohmann::json{
             {"price", tick.price},
@@ -117,9 +117,9 @@ namespace dfh {
         };
     }
 
-    /// \brief Deserializes TradeTick from JSON.
-    /// \param j JSON source object.
-    /// \param tick TradeTick to populate.
+    /// \brief Десериализует TradeTick из JSON.
+    /// \param j JSON-источник с описанием сделки.
+    /// \param tick Структура, которая заполняется.
     inline void from_json(const nlohmann::json& j, TradeTick& tick) {
         j.at("price").get_to(tick.price);
         j.at("volume").get_to(tick.volume);

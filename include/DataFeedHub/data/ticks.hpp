@@ -3,7 +3,7 @@
 #define _DTH_DATA_TICKS_HPP_INCLUDED
 
 /// \file ticks.hpp
-/// \brief Umbrella header that aggregates all tick-domain types.
+/// \brief Umbrella-заголовок, объединяющий все типы и конфигурации тик-домена.
 
 #include <array>
 #include <cstddef>

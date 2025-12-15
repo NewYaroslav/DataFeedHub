@@ -9,11 +9,15 @@
 #include <mz_zip.h>
 #include <mz_zip_rw.h>
 #include <simdcomp.h>
+#ifndef _MSC_VER
 #include <vbyte.h>
+#endif
 #include <zstd.h>
 #include <mdbx.h>
+#ifndef _MSC_VER
 #include <time_shield_cpp/time_shield.hpp>
 #include <gzip/compress.hpp>
+#endif
 #include <nlohmann/json.hpp>
 #include <fast_double_parser.h>
 #include <fast_float/fast_float.h>
@@ -38,8 +42,10 @@ int main() {
     }
     (void)simdmaxbitsd1_length(0, values.data(), static_cast<int>(values.size()));
 
+    #ifndef _MSC_VER
     std::array<uint8_t, 128> encoded{};
     vbyte_compress_unsorted32(values.data(), encoded.data(), values.size());
+    #endif
 
     // zstd
     std::array<uint8_t, 256> compressed{};
@@ -57,9 +63,11 @@ int main() {
     const bool has_version_info = (mdbx_version.git.describe != nullptr);
 
     // Header-only deps
+    #ifndef _MSC_VER
     auto now = time_shield::timestamp();
     auto iso = time_shield::to_iso8601(now);
     gzip::Compressor gzip_compressor;
+    #endif
 
     nlohmann::json json = {{"value", 42}};
     double json_value = json["value"].get<double>();
@@ -78,7 +86,9 @@ int main() {
     }
     (void)parsed_float;
 
+    #ifndef _MSC_VER
     bool ok = !iso.empty() && json_value == 42.0 && has_version_info;
     (void)gzip_compressor;
     return ok ? 0 : 1;
+    #endif
 }

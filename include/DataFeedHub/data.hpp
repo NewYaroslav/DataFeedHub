@@ -3,17 +3,14 @@
 #define _DTH_DATA_HPP_INCLUDED
 
 /// \file data.hpp
-/// \brief Central include for all core data structures in the DataFeedHub domain.
-///
-/// This header aggregates commonly used data definitions, including:
-/// - Common enums and constants (`common.hpp`)
-/// - Tick data structures (`ticks.hpp`)
-/// - Bar data structures (OHLCV) (`bars.hpp`)
-/// - Funding rate data (`funding.hpp`)
-/// - Trading-related types (`trading.hpp`)
-///
-/// These structures are used throughout the system for data storage, serialization,
-/// and communication between modules.
+/// \brief Основной include для домена данных DataFeedHub.
+/// \details Собирает в одном месте ключевые типы, используемые при хранении, сериализации
+/// и передаче рыночной информации между модулями. Включает:
+/// - общие перечисления и флаги (`common.hpp`)
+/// - структуры и кодеки тиков (`ticks.hpp`)
+/// - структуры OHLCV-баров (`bars.hpp`)
+/// - информацию о ставках финансирования (`funding.hpp`)
+/// - типы для торговли и ордерной логики (`trading.hpp`)
 
 //------------------------------------------------------------------------------
 // Standard headers
