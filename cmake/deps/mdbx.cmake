@@ -89,6 +89,12 @@ function(dfh_use_or_fetch_mdbx out_target)
         # Unique binary dir
         add_subdirectory("${_MDBX_SRC_REAL}" "${CMAKE_BINARY_DIR}/_deps/mdbx-build")
 
+        if (TARGET mdbx-static)
+            set_property(TARGET mdbx-static PROPERTY C_STANDARD 17)
+            set_property(TARGET mdbx-static PROPERTY C_STANDARD_REQUIRED ON)
+            set_property(TARGET mdbx-static PROPERTY C_EXTENSIONS OFF)
+        endif()
+
         if(TARGET mdbx-static)
             add_library(mdbx::mdbx ALIAS mdbx-static)
         elseif(TARGET mdbx)

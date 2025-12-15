@@ -14,6 +14,12 @@ if(POLICY CMP0152)
     cmake_policy(SET CMP0152 NEW)
 endif()
 
+if (MSVC)
+  set(CMAKE_IGNORE_PREFIX_PATH "C:/msys64;C:/msys64/mingw64" CACHE STRING "" FORCE)
+  set(CMAKE_IGNORE_PATH        "C:/msys64;C:/msys64/mingw64" CACHE STRING "" FORCE)
+  set(CMAKE_SYSTEM_IGNORE_PATH "C:/msys64;C:/msys64/mingw64" CACHE STRING "" FORCE)
+endif()
+
 option(DFH_BUILD_TESTS "Build tests from the tests/ folder" ON)
 option(DFH_BUILD_LEGACY_TESTS "Build existing regression tests (may require extra setup)" OFF)
 option(DFH_SDK_BUNDLE_DEPS "Install vendored dependencies when preparing SDK artifacts" OFF)
@@ -28,6 +34,7 @@ endforeach()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_C_EXTENSIONS OFF)
 
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
