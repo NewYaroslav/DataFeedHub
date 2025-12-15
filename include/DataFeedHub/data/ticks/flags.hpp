@@ -30,7 +30,7 @@ namespace dfh {
 
     /// \enum TickStorageFlags
     /// \brief Flags controlling tick data encoding, compression, and storage.
-    enum class TickStorageFlags : uint8_t {
+    enum class TickStorageFlags : std::uint32_t {
         NONE               = 0,       ///< No special flags.
         TRADE_BASED        = 1 << 0,  ///< Encode as trade-based data (e.g., only last price).
         ENABLE_TICK_FLAGS  = 1 << 1,  ///< Encode TickUpdateFlags.
@@ -134,22 +134,22 @@ namespace dfh {
     }
 
 //------------------------------------------------------------------------------
-// TickStorageFlags operators
-//------------------------------------------------------------------------------
+    // TickStorageFlags operators
+    //------------------------------------------------------------------------------
 
     /// \brief Enables bitwise OR for TickStorageFlags.
     [[nodiscard]] constexpr TickStorageFlags operator|(TickStorageFlags a, TickStorageFlags b) noexcept {
-        return static_cast<TickStorageFlags>(static_cast<std::uint8_t>(a) | static_cast<std::uint8_t>(b));
+        return static_cast<TickStorageFlags>(static_cast<std::uint32_t>(a) | static_cast<std::uint32_t>(b));
     }
 
     /// \brief Enables bitwise AND for TickStorageFlags.
     [[nodiscard]] constexpr TickStorageFlags operator&(TickStorageFlags a, TickStorageFlags b) noexcept {
-        return static_cast<TickStorageFlags>(static_cast<std::uint8_t>(a) & static_cast<std::uint8_t>(b));
+        return static_cast<TickStorageFlags>(static_cast<std::uint32_t>(a) & static_cast<std::uint32_t>(b));
     }
 
     /// \brief Enables bitwise NOT for TickStorageFlags.
     [[nodiscard]] constexpr TickStorageFlags operator~(TickStorageFlags a) noexcept {
-        return static_cast<TickStorageFlags>(~static_cast<std::uint8_t>(a));
+        return static_cast<TickStorageFlags>(~static_cast<std::uint32_t>(a));
     }
 
     /// \brief Enables |= operator for TickStorageFlags.

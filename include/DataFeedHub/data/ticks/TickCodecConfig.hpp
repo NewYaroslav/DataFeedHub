@@ -12,6 +12,7 @@ namespace dfh {
     ///
     /// The `flags` field controls optional features such as trade-based encoding, tick flags,
     /// received timestamp storage, and binary format selection.
+#pragma pack(push, 1)
     struct TickCodecConfig {
         double tick_size{0.0};                  ///< Minimum price increment (tick size).
         std::uint64_t expiration_time_ms{0};    ///< Expiration time for futures (0 for perpetual or spot).
@@ -19,7 +20,7 @@ namespace dfh {
         TickStorageFlags flags{TickStorageFlags::NONE}; ///< Encoding flags.
         std::uint8_t price_digits{0};           ///< Number of decimal places for prices.
         std::uint8_t volume_digits{0};          ///< Number of decimal places for volumes.
-        std::array<std::uint8_t, 6> reserved{}; ///< Reserved for future use; keeps structure 32 bytes long.
+        std::array<std::uint8_t, 2> reserved{}; ///< Reserved for future use; keeps structure 32 bytes long.
 
         /// \brief Default constructor for TickCodecConfig.
         constexpr TickCodecConfig() noexcept = default;
@@ -67,6 +68,7 @@ namespace dfh {
             return (flags & flag) != TickStorageFlags::NONE;
         }
     };
+#pragma pack(pop)
 
     static_assert(sizeof(TickCodecConfig) == 32,
                   "TickCodecConfig must remain compact for binary headers.");
