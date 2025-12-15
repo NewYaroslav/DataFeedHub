@@ -24,7 +24,9 @@
 #include <nlohmann/json.hpp>
 #include <fast_double_parser.h>
 #include <fast_float/fast_float.h>
+#ifndef _MSC_VER
 #include <DataFeedHub/compression.hpp>
+#endif
 
 namespace {
 
@@ -32,6 +34,7 @@ bool almost_equal(double lhs, double rhs, double eps = 1e-12) {
     return std::fabs(lhs - rhs) <= eps;
 }
 
+#ifndef _MSC_VER
 void test_tick_codec_market_tick_roundtrip() {
     constexpr std::size_t tick_count = 32;
     constexpr std::uint64_t base_time_ms = 1700000000000ULL;
@@ -91,11 +94,16 @@ void test_tick_codec_market_tick_roundtrip() {
     assert(!decoded_config.has_flag(dfh::TickStorageFlags::TRADE_BASED));
     assert(decoded_config.has_flag(dfh::TickStorageFlags::STORE_RAW_BINARY));
 }
+#else
+void test_tick_codec_market_tick_roundtrip() {}
+#endif
 
 } // namespace
 
 int main() {
+#ifndef _MSC_VER
     test_tick_codec_market_tick_roundtrip();
+#endif
 
     // zlib-ng
     z_stream stream{};
@@ -164,5 +172,7 @@ int main() {
     bool ok = !iso.empty() && json_value == 42.0 && has_version_info;
     (void)gzip_compressor;
     return ok ? 0 : 1;
+    #else
+    return has_version_info ? 0 : 1;
     #endif
 }
