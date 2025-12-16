@@ -8,47 +8,41 @@
 namespace dfh {
 
     /// \struct QuoteTick
-    /// \brief Simplified quote tick that stores bid/ask prices and timestamps.
+    /// \brief Упрощённый тик с bid/ask и меткой времени.
     struct QuoteTick {
-        double ask{0.0};           ///< Ask price.
-        double bid{0.0};           ///< Bid price.
-        std::uint64_t time_ms{0};  ///< Tick timestamp in milliseconds.
-        std::uint64_t received_ms{0}; ///< When the quote was received (ms since epoch).
+        double ask{0.0};           ///< Цена спроса.
+        double bid{0.0};           ///< Цена предложения.
+        std::uint64_t time_ms{0};  ///< Метка времени тика в миллисекундах.
 
-        /// \brief Constructs a quote tick with both timestamps.
-        /// \param a Ask price.
-        /// \param b Bid price.
-        /// \param ts Exchange timestamp in milliseconds.
-        /// \param recv_ms Receive timestamp in milliseconds (0 if unknown).
-        constexpr QuoteTick(double a, double b, std::uint64_t ts, std::uint64_t recv_ms = 0) noexcept
-            : ask(a), bid(b), time_ms(ts), received_ms(recv_ms) {}
+        /// \brief Конструктор задаёт цены и метку времени.
+        /// \param a Цена спроса.
+        /// \param b Цена предложения.
+        /// \param ts Биржевой timestamp в миллисекундах.
+        constexpr QuoteTick(double a, double b, std::uint64_t ts) noexcept
+            : ask(a), bid(b), time_ms(ts) {}
     };
 
     static_assert(std::is_trivially_copyable_v<QuoteTick>,
                   "QuoteTick must remain trivially copyable for zero-copy transports.");
-    static_assert(sizeof(QuoteTick) == 2 * sizeof(double) + 2 * sizeof(std::uint64_t),
+    static_assert(sizeof(QuoteTick) == 2 * sizeof(double) + sizeof(std::uint64_t),
                   "QuoteTick layout changed unexpectedly.");
 
 #if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 
-    /// \brief Serializes QuoteTick to JSON.
+    /// \brief Сериализует QuoteTick в JSON.
     /// \param j JSON destination.
     /// \param tick Tick to serialize.
     inline void to_json(nlohmann::json& j, const QuoteTick& tick) {
         j = nlohmann::json{{"ask", tick.ask}, {"bid", tick.bid}, {"time_ms", tick.time_ms}};
-        if (tick.received_ms != 0) {
-            j["received_ms"] = tick.received_ms;
-        }
     }
 
-    /// \brief Deserializes QuoteTick from JSON.
+    /// \brief Десериализует QuoteTick из JSON.
     /// \param j JSON source.
     /// \param tick Tick to populate.
     inline void from_json(const nlohmann::json& j, QuoteTick& tick) {
         j.at("ask").get_to(tick.ask);
         j.at("bid").get_to(tick.bid);
         j.at("time_ms").get_to(tick.time_ms);
-        tick.received_ms = j.value("received_ms", std::uint64_t{0});
     }
 
 #endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
