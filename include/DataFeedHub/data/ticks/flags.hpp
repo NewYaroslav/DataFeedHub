@@ -36,7 +36,9 @@ namespace dfh {
         ENABLE_TICK_FLAGS  = 1 << 1,  ///< Encode TickUpdateFlags.
         ENABLE_RECV_TIME   = 1 << 2,  ///< Include received_time in encoded data.
         ENABLE_VOLUME      = 1 << 3,  ///< Store base asset volume.
-        STORE_RAW_BINARY   = 1 << 5   ///< Use raw binary format (no compression).
+        ENABLE_TRADE_ID    = 1 << 4,  ///< Store trade identifier for TradeTick.
+        STORE_RAW_BINARY   = 1 << 5,  ///< Use raw binary format (no compression).
+        L1_TWO_VOLUMES     = 1 << 6   ///< Mark presence of bid and ask volumes for L1 ticks.
     };
 
 //------------------------------------------------------------------------------
