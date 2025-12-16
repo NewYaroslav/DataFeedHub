@@ -10,17 +10,21 @@ namespace dfh {
     /// \struct TickCodecConfig
     /// \brief Parameters for tick data compression, serialization, and storage.
     ///
+    /// Binary layout notes:
+    /// - The structure is stored/used as a fixed-size 32-byte binary header.
+    /// - Field offsets are validated to avoid ABI/padding regressions across compilers.
+    /// - The alignment is expected to match std::uint64_t to keep 64-bit fields naturally aligned.
+    ///
     /// The `flags` field controls optional features such as trade-based encoding, tick flags,
     /// received timestamp storage, and binary format selection.
-#pragma pack(push, 1)
     struct TickCodecConfig {
-        double tick_size{0.0};                  ///< Minimum price increment (tick size).
-        std::uint64_t expiration_time_ms{0};    ///< Expiration time for futures (0 for perpetual or spot).
+        double tick_size{0.0};                    ///< Minimum price increment (tick size).
+        std::uint64_t expiration_time_ms{0};      ///< Expiration time for futures (0 for perpetual or spot).
         std::uint64_t next_expiration_time_ms{0}; ///< Expiration time of the next contract (0 if not defined).
         TickStorageFlags flags{TickStorageFlags::NONE}; ///< Encoding flags.
-        std::uint8_t price_digits{0};           ///< Number of decimal places for prices.
-        std::uint8_t volume_digits{0};          ///< Number of decimal places for volumes.
-        std::array<std::uint8_t, 2> reserved{}; ///< Reserved for future use; keeps structure 32 bytes long.
+        std::uint8_t price_digits{0};             ///< Number of decimal places for prices.
+        std::uint8_t volume_digits{0};            ///< Number of decimal places for volumes.
+        std::array<std::uint8_t, 2> reserved{};   ///< Reserved for future use; keeps structure 32 bytes long.
 
         /// \brief Default constructor for TickCodecConfig.
         constexpr TickCodecConfig() noexcept = default;
@@ -68,10 +72,21 @@ namespace dfh {
             return (flags & flag) != TickStorageFlags::NONE;
         }
     };
-#pragma pack(pop)
 
     static_assert(sizeof(TickCodecConfig) == 32,
                   "TickCodecConfig must remain compact for binary headers.");
+    static_assert(alignof(TickCodecConfig) == alignof(std::uint64_t),
+                  "TickCodecConfig alignment must match std::uint64_t.");
+
+    static_assert(offsetof(TickCodecConfig, tick_size) == 0,
+                  "TickCodecConfig layout changed: tick_size offset mismatch.");
+    static_assert(offsetof(TickCodecConfig, expiration_time_ms) == 8,
+                  "TickCodecConfig layout changed: expiration_time_ms offset mismatch.");
+    static_assert(offsetof(TickCodecConfig, next_expiration_time_ms) == 16,
+                  "TickCodecConfig layout changed: next_expiration_time_ms offset mismatch.");
+    static_assert(offsetof(TickCodecConfig, flags) == 24,
+                  "TickCodecConfig layout changed: flags offset mismatch.");
+
     static_assert(std::is_trivially_copyable_v<TickCodecConfig>,
                   "TickCodecConfig must stay trivially copyable.");
 
