@@ -45,7 +45,7 @@ namespace dfh {
             return tick;
         }
 
-        static QuoteTick from(const MarketTick& tick) noexcept {
+        static QuoteTick from(const MarketTick& tick, std::uint64_t trade_id = 0) noexcept {
             double price = tick.last;
             if (price == 0.0 && tick.ask != 0.0) {
                 price = tick.ask;
@@ -54,6 +54,8 @@ namespace dfh {
             }
             return QuoteTick(price, price, tick.time_ms, 0);
         }
+
+        static void collect_trade_ids(const QuoteTick&, std::vector<std::uint64_t>&) noexcept {}
     };
 
     static_assert(std::is_trivially_copyable_v<QuoteTick>,

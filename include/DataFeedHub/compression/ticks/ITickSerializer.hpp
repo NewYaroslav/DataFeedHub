@@ -12,6 +12,7 @@ namespace dfh {
     struct QuoteTick;
     struct QuoteTickVol;
     struct QuoteTickL1;
+    struct TradeTick;
     struct TickCodecConfig;
 }
 
@@ -130,6 +131,38 @@ namespace dfh::compression {
         virtual void deserialize(
             const std::vector<uint8_t>& input,
             std::vector<dfh::QuoteTickVol>& ticks,
+            dfh::TickCodecConfig& config) = 0;
+
+        /// \brief Serializes trade tick data into a binary format.
+        /// \param ticks A vector of TradeTick structures.
+        /// \param output A vector where the binary data will be stored.
+        virtual void serialize(
+            const std::vector<dfh::TradeTick>& ticks,
+            std::vector<uint8_t>& output) = 0;
+
+        /// \brief Serializes trade tick data with a specified configuration.
+        /// \param ticks A vector of TradeTick structures.
+        /// \param config The serialization configuration.
+        /// \param output A vector where the binary data will be stored.
+        virtual void serialize(
+            const std::vector<dfh::TradeTick>& ticks,
+            const dfh::TickCodecConfig& config,
+            std::vector<uint8_t>& output) = 0;
+
+        /// \brief Deserializes trade tick data from binary format.
+        /// \param input A vector of binary data.
+        /// \param ticks A vector where the deserialized trade tick data will be stored.
+        virtual void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<dfh::TradeTick>& ticks) = 0;
+
+        /// \brief Deserializes trade tick data and retrieves the configuration.
+        /// \param input A vector of binary data.
+        /// \param ticks A vector where the deserialized trade tick data will be stored.
+        /// \param config A reference to store the retrieved configuration.
+        virtual void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<dfh::TradeTick>& ticks,
             dfh::TickCodecConfig& config) = 0;
 
         /// \brief Serializes L1 quote tick data into a binary format.

@@ -6,12 +6,17 @@
 /// \brief Declares conversion helpers between quote DTOs and MarketTick.
 
 #include "MarketTick.hpp"
+#include <cstdint>
+#include <vector>
 
 namespace dfh {
 
-    /// \brief Traits for converting between a QuoteType and MarketTick.
     template<typename QuoteType>
-    struct QuoteTickConversion;
+    struct QuoteTickConversion {
+        static MarketTick to(const QuoteType& quote) noexcept;
+        static QuoteType from(const MarketTick& tick, std::uint64_t trade_id = 0) noexcept;
+        static void collect_trade_ids(const QuoteType&, std::vector<uint64_t>&) noexcept {}
+    };
 
 } // namespace dfh
 

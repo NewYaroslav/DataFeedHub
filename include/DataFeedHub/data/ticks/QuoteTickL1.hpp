@@ -57,10 +57,12 @@ namespace dfh {
             return tick;
         }
 
-        static QuoteTickL1 from(const MarketTick& tick) noexcept {
+        static QuoteTickL1 from(const MarketTick& tick, std::uint64_t trade_id = 0) noexcept {
             const double half_volume = tick.volume * 0.5;
             return QuoteTickL1(tick.ask, tick.bid, half_volume, half_volume, tick.time_ms, 0);
         }
+
+        static void collect_trade_ids(const QuoteTickL1&, std::vector<std::uint64_t>&) noexcept {}
     };
 
     static_assert(std::is_trivially_copyable_v<QuoteTickL1>,

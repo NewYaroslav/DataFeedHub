@@ -8,6 +8,9 @@
 #include "../../data/ticks/QuoteTick.hpp"
 #include "../../data/ticks/QuoteTickVol.hpp"
 #include "../../data/ticks/QuoteTickL1.hpp"
+#include "../../data/ticks/TradeTick.hpp"
+#include "../../data/ticks/QuoteTickVol.hpp"
+#include "../../data/ticks/QuoteTickL1.hpp"
 #include "../../data/ticks/QuoteTickConversions.hpp"
 #include "../../data/ticks/QuoteTickVol.hpp"
 #include "../../data/ticks/QuoteTickL1.hpp"
@@ -198,6 +201,40 @@ namespace dfh::compression {
         void deserialize(
                 const std::vector<uint8_t>& input,
                 std::vector<dfh::QuoteTickL1>& ticks,
+                dfh::TickCodecConfig& config) override final {
+            select_serializer(input);
+            m_serializer->deserialize(input, ticks, config);
+        }
+
+        /// \brief Serializes trade tick data into a binary format.
+        void serialize(
+                const std::vector<dfh::TradeTick>& ticks,
+                std::vector<uint8_t>& output) override final {
+            if (!m_serializer) throw std::runtime_error("No serializer selected.");
+            m_serializer->serialize(ticks, output);
+        }
+
+        /// \brief Serializes trade tick data with a specified configuration.
+        void serialize(
+                const std::vector<dfh::TradeTick>& ticks,
+                const dfh::TickCodecConfig& config,
+                std::vector<uint8_t>& output) override final {
+            select_serializer(config);
+            m_serializer->serialize(ticks, config, output);
+        }
+
+        /// \brief Deserializes trade tick data from binary format.
+        void deserialize(
+                const std::vector<uint8_t>& input,
+                std::vector<dfh::TradeTick>& ticks) override final {
+            select_serializer(input);
+            m_serializer->deserialize(input, ticks);
+        }
+
+        /// \brief Deserializes trade tick data and retrieves the configuration.
+        void deserialize(
+                const std::vector<uint8_t>& input,
+                std::vector<dfh::TradeTick>& ticks,
                 dfh::TickCodecConfig& config) override final {
             select_serializer(input);
             m_serializer->deserialize(input, ticks, config);
