@@ -13,27 +13,24 @@ namespace dfh {
         double bid{0.0};             ///< Цена лучшего bid.
         double ask_volume{0.0};      ///< Объём по ask.
         double bid_volume{0.0};      ///< Объём по bid.
-        std::uint64_t time_ms{0};    ///< Отметка времени тика в миллисекундах.
+        std::uint64_t time_ms{0};    ///< Метка времени тика в миллисекундах.
 
         /// \brief Конструктор по умолчанию обнуляет все поля.
         constexpr QuoteTickL1() noexcept = default;
 
-        /// \brief Конструктор задаёт цены, объёмы и отметку времени.
+        /// \brief Конструктор задаёт цены, объёмы и метку времени.
         /// \param a Лучший ask.
         /// \param b Лучший bid.
         /// \param av Объём по ask.
         /// \param bv Объём по bid.
-        /// \param ts Отметка времени тика в миллисекундах.
+        /// \param ts Метка времени тика в миллисекундах.
         constexpr QuoteTickL1(double a,
                               double b,
                               double av,
                               double bv,
                               std::uint64_t ts) noexcept
-            : ask(a)
-            , bid(b)
-            , ask_volume(av)
-            , bid_volume(bv)
-            , time_ms(ts) {}
+            : ask(a) , bid(b), 
+              ask_volume(av), bid_volume(bv), time_ms(ts) {}
     };
 
     static_assert(std::is_trivially_copyable_v<QuoteTickL1>,
