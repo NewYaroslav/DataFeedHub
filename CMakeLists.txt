@@ -143,6 +143,11 @@ if(DFH_BUILD_TESTS)
     target_compile_features(test_tick_codec_compat_trade_to_market PRIVATE cxx_std_17)
     add_test(NAME test_tick_codec_compat_trade_to_market COMMAND test_tick_codec_compat_trade_to_market)
 
+    add_executable(test_tick_codec_compat_market_tradebased_to_trade tests/test_tick_codec_compat_market_tradebased_to_trade.cpp)
+    target_link_libraries(test_tick_codec_compat_market_tradebased_to_trade PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
+    target_compile_features(test_tick_codec_compat_market_tradebased_to_trade PRIVATE cxx_std_17)
+    add_test(NAME test_tick_codec_compat_market_tradebased_to_trade COMMAND test_tick_codec_compat_market_tradebased_to_trade)
+
     if(DFH_BUILD_LEGACY_TESTS)
         file(GLOB DFH_TEST_SOURCES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tests/*.cpp")
         foreach(test_src IN LISTS DFH_TEST_SOURCES)
