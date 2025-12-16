@@ -9,10 +9,11 @@
 
 namespace dfh {
 
-    template <typename EnumType>
     /// \brief Преобразует строковое имя в значение перечисления `EnumType`.
+    /// \tparam EnumType Тип перечисления, которое требуется получить из строки.
     /// \param str Строковое имя элемента перечисления (ожидается точное совпадение).
     /// \return Значение перечисления, соответствующее этой строке.
+    template <typename EnumType>
     EnumType to_enum(const std::string& str);
 
 } // namespace dfh

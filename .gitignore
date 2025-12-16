@@ -49,3 +49,4 @@ cmake-build-*/
 *.bak
 *~
 *.swp
+/tick_size.exe

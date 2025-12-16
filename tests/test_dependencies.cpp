@@ -1,7 +1,10 @@
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <system_error>
+#include <vector>
 
 #include <zlib.h>
 #include <mz.h>
@@ -21,8 +24,87 @@
 #include <nlohmann/json.hpp>
 #include <fast_double_parser.h>
 #include <fast_float/fast_float.h>
+#ifndef _MSC_VER
+#include <DataFeedHub/compression.hpp>
+#endif
+
+namespace {
+
+bool almost_equal(double lhs, double rhs, double eps = 1e-12) {
+    return std::fabs(lhs - rhs) <= eps;
+}
+
+#ifndef _MSC_VER
+void test_tick_codec_market_tick_roundtrip() {
+    constexpr std::size_t tick_count = 32;
+    constexpr std::uint64_t base_time_ms = 1700000000000ULL;
+
+    std::vector<dfh::MarketTick> ticks;
+    ticks.reserve(tick_count);
+    for (std::size_t i = 0; i < tick_count; ++i) {
+        dfh::MarketTick tick{};
+        tick.time_ms = base_time_ms + static_cast<std::uint64_t>(i) * 100ULL;
+        tick.ask = 100.25 + static_cast<double>(i) * 0.01;
+        tick.bid = 100.20 + static_cast<double>(i) * 0.01;
+        tick.last = 100.22 + static_cast<double>(i) * 0.01;
+        tick.received_ms = 0;
+        tick.volume = 0.0;
+        tick.flags = dfh::TickUpdateFlags::NONE;
+        ticks.push_back(tick);
+    }
+
+    dfh::TickCodecConfig codec_config{};
+    codec_config.price_digits = 6;
+    codec_config.volume_digits = 3;
+    codec_config.tick_size = 0.0;
+    codec_config.flags = dfh::TickStorageFlags::NONE;
+    codec_config.set_flag(dfh::TickStorageFlags::ENABLE_TICK_FLAGS, false);
+    codec_config.set_flag(dfh::TickStorageFlags::ENABLE_RECV_TIME, false);
+    codec_config.set_flag(dfh::TickStorageFlags::ENABLE_VOLUME, false);
+    codec_config.set_flag(dfh::TickStorageFlags::TRADE_BASED, false);
+    // TickBinarySerializerV1 requires STORE_RAW_BINARY, other optional flags stay disabled.
+    codec_config.set_flag(dfh::TickStorageFlags::STORE_RAW_BINARY, true);
+
+    dfh::compression::TickBinarySerializerV1 serializer;
+    serializer.set_codec_config(codec_config);
+
+    std::vector<std::uint8_t> buffer;
+    serializer.serialize(ticks, buffer);
+
+    std::vector<dfh::MarketTick> decoded;
+    dfh::TickCodecConfig decoded_config{};
+    serializer.deserialize(buffer, decoded, decoded_config);
+
+    assert(decoded.size() == ticks.size());
+    for (std::size_t i = 0; i < ticks.size(); ++i) {
+        const auto& expected = ticks[i];
+        const auto& actual = decoded[i];
+        assert(expected.time_ms == actual.time_ms);
+        assert(actual.received_ms == 0);
+        assert(almost_equal(expected.ask, actual.ask));
+        assert(almost_equal(expected.bid, actual.bid));
+        assert(almost_equal(expected.last, actual.last));
+        assert(almost_equal(actual.volume, 0.0));
+        assert(actual.flags == dfh::TickUpdateFlags::NONE);
+    }
+
+    assert(!decoded_config.has_flag(dfh::TickStorageFlags::ENABLE_TICK_FLAGS));
+    assert(!decoded_config.has_flag(dfh::TickStorageFlags::ENABLE_RECV_TIME));
+    assert(!decoded_config.has_flag(dfh::TickStorageFlags::ENABLE_VOLUME));
+    assert(!decoded_config.has_flag(dfh::TickStorageFlags::TRADE_BASED));
+    assert(decoded_config.has_flag(dfh::TickStorageFlags::STORE_RAW_BINARY));
+}
+#else
+void test_tick_codec_market_tick_roundtrip() {}
+#endif
+
+} // namespace
 
 int main() {
+#   ifndef _MSC_VER
+    test_tick_codec_market_tick_roundtrip();
+#   endif
+
     // zlib-ng
     z_stream stream{};
     if (deflateInit2(&stream, Z_BEST_SPEED, Z_DEFLATED, MAX_WBITS, 1, Z_DEFAULT_STRATEGY) != Z_OK) {
@@ -42,10 +124,10 @@ int main() {
     }
     (void)simdmaxbitsd1_length(0, values.data(), static_cast<int>(values.size()));
 
-    #ifndef _MSC_VER
+#   ifndef _MSC_VER
     std::array<uint8_t, 128> encoded{};
     vbyte_compress_unsorted32(values.data(), encoded.data(), values.size());
-    #endif
+#   endif
 
     // zstd
     std::array<uint8_t, 256> compressed{};
@@ -63,11 +145,11 @@ int main() {
     const bool has_version_info = (mdbx_version.git.describe != nullptr);
 
     // Header-only deps
-    #ifndef _MSC_VER
+#   ifndef _MSC_VER
     auto now = time_shield::timestamp();
     auto iso = time_shield::to_iso8601(now);
     gzip::Compressor gzip_compressor;
-    #endif
+#   endif
 
     nlohmann::json json = {{"value", 42}};
     double json_value = json["value"].get<double>();
@@ -86,9 +168,11 @@ int main() {
     }
     (void)parsed_float;
 
-    #ifndef _MSC_VER
-    bool ok = !iso.empty() && json_value == 42.0 && has_version_info;
-    (void)gzip_compressor;
-    return ok ? 0 : 1;
-    #endif
+#   ifndef _MSC_VER
+        bool ok = !iso.empty() && json_value == 42.0 && has_version_info;
+        (void)gzip_compressor;
+        return ok ? 0 : 1;
+#   else
+        return has_version_info ? 0 : 1;
+#   endif
 }

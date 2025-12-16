@@ -126,7 +126,7 @@ namespace dfh::utils {
     /// \throws std::runtime_error If input is empty or decompression fails.
     inline std::string extract_from_gzip(const std::string& gzip_data, size_t max_bytes = 2000000000) {
         if (gzip_data.empty()) throw std::runtime_error("GZIP archive is empty.");
-        return gzip::decompress(gzip_data.data(), gzip_data.size(), max_bytes);
+        return gzip::decompress(gzip_data, max_bytes);
     }
 
 }; // namespace dfh::utils
