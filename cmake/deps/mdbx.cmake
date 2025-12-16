@@ -90,9 +90,11 @@ function(dfh_use_or_fetch_mdbx out_target)
         add_subdirectory("${_MDBX_SRC_REAL}" "${CMAKE_BINARY_DIR}/_deps/mdbx-build")
 
         if (TARGET mdbx-static)
-            set_property(TARGET mdbx-static PROPERTY C_STANDARD 17)
-            set_property(TARGET mdbx-static PROPERTY C_STANDARD_REQUIRED ON)
-            set_property(TARGET mdbx-static PROPERTY C_EXTENSIONS OFF)
+            # libmdbx управляет стандартом сам; форсинг C17/без расширений ломал/может ломать сборку
+            # libmdbx рассчитан на C11, и его CMake сам выставляет нужные флаги.
+            # - set_property(TARGET mdbx-static PROPERTY C_STANDARD 11)
+            # - set_property(TARGET mdbx-static PROPERTY C_STANDARD_REQUIRED ON)
+            # C_EXTENSIONS не трогать, пока нет явной причины
         endif()
 
         if(TARGET mdbx-static)
