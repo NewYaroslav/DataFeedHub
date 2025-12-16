@@ -6,6 +6,11 @@
 /// \brief Selects and applies the appropriate tick serializer based on configuration.
 
 #include "../../data/ticks/QuoteTick.hpp"
+#include "../../data/ticks/QuoteTickVol.hpp"
+#include "../../data/ticks/QuoteTickL1.hpp"
+#include "../../data/ticks/QuoteTickConversions.hpp"
+#include "../../data/ticks/QuoteTickVol.hpp"
+#include "../../data/ticks/QuoteTickL1.hpp"
 #include "TickBinarySerializerV1.hpp"
 #include "TickCompressorV1.hpp"
 
@@ -87,6 +92,40 @@ namespace dfh::compression {
             m_serializer->serialize(ticks, config, output);
         }
 
+        /// \brief Serializes QuoteTickVol data into a binary format.
+        void serialize(
+                const std::vector<dfh::QuoteTickVol>& ticks,
+                std::vector<uint8_t>& output) override final {
+            if (!m_serializer) throw std::runtime_error("No serializer selected.");
+            m_serializer->serialize(ticks, output);
+        }
+
+        /// \brief Serializes QuoteTickVol data with a specified configuration.
+        void serialize(
+                const std::vector<dfh::QuoteTickVol>& ticks,
+                const dfh::TickCodecConfig& config,
+                std::vector<uint8_t>& output) override final {
+            select_serializer(config);
+            m_serializer->serialize(ticks, config, output);
+        }
+
+        /// \brief Serializes QuoteTickL1 data into a binary format.
+        void serialize(
+                const std::vector<dfh::QuoteTickL1>& ticks,
+                std::vector<uint8_t>& output) override final {
+            if (!m_serializer) throw std::runtime_error("No serializer selected.");
+            m_serializer->serialize(ticks, output);
+        }
+
+        /// \brief Serializes QuoteTickL1 data with a specified configuration.
+        void serialize(
+                const std::vector<dfh::QuoteTickL1>& ticks,
+                const dfh::TickCodecConfig& config,
+                std::vector<uint8_t>& output) override final {
+            select_serializer(config);
+            m_serializer->serialize(ticks, config, output);
+        }
+
         /// \brief Deserializes tick data from binary format.
         /// \param input A vector of binary data.
         /// \param ticks A vector where the deserialized tick data will be stored.
@@ -125,6 +164,40 @@ namespace dfh::compression {
         void deserialize(
                 const std::vector<uint8_t>& input,
                 std::vector<dfh::QuoteTick>& ticks,
+                dfh::TickCodecConfig& config) override final {
+            select_serializer(input);
+            m_serializer->deserialize(input, ticks, config);
+        }
+
+        /// \brief Deserializes QuoteTickVol data from binary format.
+        void deserialize(
+                const std::vector<uint8_t>& input,
+                std::vector<dfh::QuoteTickVol>& ticks) override final {
+            select_serializer(input);
+            m_serializer->deserialize(input, ticks);
+        }
+
+        /// \brief Deserializes QuoteTickVol data and retrieves the configuration.
+        void deserialize(
+                const std::vector<uint8_t>& input,
+                std::vector<dfh::QuoteTickVol>& ticks,
+                dfh::TickCodecConfig& config) override final {
+            select_serializer(input);
+            m_serializer->deserialize(input, ticks, config);
+        }
+
+        /// \brief Deserializes QuoteTickL1 data from binary format.
+        void deserialize(
+                const std::vector<uint8_t>& input,
+                std::vector<dfh::QuoteTickL1>& ticks) override final {
+            select_serializer(input);
+            m_serializer->deserialize(input, ticks);
+        }
+
+        /// \brief Deserializes QuoteTickL1 data and retrieves the configuration.
+        void deserialize(
+                const std::vector<uint8_t>& input,
+                std::vector<dfh::QuoteTickL1>& ticks,
                 dfh::TickCodecConfig& config) override final {
             select_serializer(input);
             m_serializer->deserialize(input, ticks, config);

@@ -5,6 +5,10 @@
 /// \file QuoteTickL1.hpp
 /// \brief Defines the QuoteTickL1 structure for L1 quote ticks with bid/ask volumes.
 
+#include "flags.hpp"
+#include "MarketTick.hpp"
+#include "QuoteTickConversions.hpp"
+
 namespace dfh {
 
     /// \brief L1 quote tick with bid/ask prices and volumes
@@ -19,10 +23,10 @@ namespace dfh {
         /// \brief Default constructor. Initializes all fields to zero.
         constexpr QuoteTickL1() noexcept = default;
 
-        /// \brief Constructor to initialize all fields.
-        /// \param a Best ask price
-        /// \param b Best bid price
-        /// \param av Volume at best ask
+    /// \brief Constructor to initialize all fields.
+    /// \param a Best ask price
+    /// \param b Best bid price
+    /// \param av Volume at best ask
         /// \param bv Volume at best bid
         /// \param ts Tick timestamp in milliseconds
         constexpr QuoteTickL1(double a,
@@ -37,6 +41,26 @@ namespace dfh {
             , bid_volume(bv)
             , time_ms(ts)
             , received_ms(recv_ms) {}
+    };
+
+    template<>
+    struct QuoteTickConversion<QuoteTickL1> {
+        static MarketTick to(const QuoteTickL1& quote) noexcept {
+            MarketTick tick{};
+            tick.time_ms = quote.time_ms;
+            tick.received_ms = 0;
+            tick.ask = quote.ask;
+            tick.bid = quote.bid;
+            tick.last = (quote.ask + quote.bid) * 0.5;
+            tick.volume = quote.ask_volume + quote.bid_volume;
+            tick.flags = TickUpdateFlags::NONE;
+            return tick;
+        }
+
+        static QuoteTickL1 from(const MarketTick& tick) noexcept {
+            const double half_volume = tick.volume * 0.5;
+            return QuoteTickL1(tick.ask, tick.bid, half_volume, half_volume, tick.time_ms, 0);
+        }
     };
 
     static_assert(std::is_trivially_copyable_v<QuoteTickL1>,

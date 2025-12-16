@@ -10,6 +10,8 @@
 namespace dfh {
     struct MarketTick;
     struct QuoteTick;
+    struct QuoteTickVol;
+    struct QuoteTickL1;
     struct TickCodecConfig;
 }
 
@@ -96,6 +98,70 @@ namespace dfh::compression {
         virtual void deserialize(
             const std::vector<uint8_t>& input,
             std::vector<dfh::QuoteTick>& ticks,
+            dfh::TickCodecConfig& config) = 0;
+
+        /// \brief Serializes quote tick data with a provider volume into a binary format.
+        /// \param ticks A vector of QuoteTickVol structures.
+        /// \param output A vector where the binary data will be stored.
+        virtual void serialize(
+            const std::vector<dfh::QuoteTickVol>& ticks,
+            std::vector<uint8_t>& output) = 0;
+
+        /// \brief Serializes quote tick data with provider volume and configuration.
+        /// \param ticks A vector of QuoteTickVol structures.
+        /// \param config The serialization configuration.
+        /// \param output A vector where the binary data will be stored.
+        virtual void serialize(
+            const std::vector<dfh::QuoteTickVol>& ticks,
+            const dfh::TickCodecConfig& config,
+            std::vector<uint8_t>& output) = 0;
+
+        /// \brief Deserializes quote tick data with provider volume.
+        /// \param input A vector of binary data.
+        /// \param ticks A vector to store the deserialized QuoteTickVol data.
+        virtual void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<dfh::QuoteTickVol>& ticks) = 0;
+
+        /// \brief Deserializes quote ticks with provider volume and retrieves the configuration.
+        /// \param input A vector of binary data.
+        /// \param ticks A vector to store the deserialized QuoteTickVol data.
+        /// \param config A reference to store the retrieved configuration.
+        virtual void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<dfh::QuoteTickVol>& ticks,
+            dfh::TickCodecConfig& config) = 0;
+
+        /// \brief Serializes L1 quote tick data into a binary format.
+        /// \param ticks A vector of QuoteTickL1 structures.
+        /// \param output A vector where the binary data will be stored.
+        virtual void serialize(
+            const std::vector<dfh::QuoteTickL1>& ticks,
+            std::vector<uint8_t>& output) = 0;
+
+        /// \brief Serializes L1 quote ticks with configuration.
+        /// \param ticks A vector of QuoteTickL1 structures.
+        /// \param config The serialization configuration.
+        /// \param output A vector where the binary data will be stored.
+        virtual void serialize(
+            const std::vector<dfh::QuoteTickL1>& ticks,
+            const dfh::TickCodecConfig& config,
+            std::vector<uint8_t>& output) = 0;
+
+        /// \brief Deserializes L1 quote tick data from binary format.
+        /// \param input A vector of binary data.
+        /// \param ticks A vector to store the deserialized QuoteTickL1 data.
+        virtual void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<dfh::QuoteTickL1>& ticks) = 0;
+
+        /// \brief Deserializes L1 quote tick data and retrieves the configuration.
+        /// \param input A vector of binary data.
+        /// \param ticks A vector to store the deserialized QuoteTickL1 data.
+        /// \param config A reference to store the retrieved configuration.
+        virtual void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<dfh::QuoteTickL1>& ticks,
             dfh::TickCodecConfig& config) = 0;
     };
 

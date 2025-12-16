@@ -6,6 +6,9 @@
 /// \brief Implements a simple binary serializer for tick data.
 
 #include "../../data/ticks/QuoteTick.hpp"
+#include "../../data/ticks/QuoteTickVol.hpp"
+#include "../../data/ticks/QuoteTickL1.hpp"
+#include "../../data/ticks/QuoteTickConversions.hpp"
 #include "../../data/ticks/TickCodecConfig.hpp"
 #include "ITickSerializer.hpp"
 
@@ -76,6 +79,7 @@ namespace dfh::compression {
             // Bits 0-4: Number of decimal places for the volume
             header = 0x00;
             header |= (m_config.volume_digits & 0x1F);
+            header |= (m_config.has_flag(TickStorageFlags::L1_TWO_VOLUMES) << 6) & 0x40;
             output.push_back(header);
 
             constexpr uint64_t interval_ms = 3600000ULL;
@@ -130,6 +134,7 @@ namespace dfh::compression {
 
             header = input[offset++];
             m_config.volume_digits  = header & 0x1F;
+            m_config.set_flag(TickStorageFlags::L1_TWO_VOLUMES, (header & 0x40) != 0);
             m_config.set_flag(TickStorageFlags::STORE_RAW_BINARY, true);
 
             constexpr uint64_t interval_ms = 3600000ULL;
@@ -159,10 +164,105 @@ namespace dfh::compression {
             config = m_config;
         }
 
-        /// \brief Serializes quote tick data into a binary format.
+        /// \brief Serializes QuoteTick data into a binary format.
         void serialize(
             const std::vector<QuoteTick>& ticks,
             std::vector<uint8_t>& output) override final {
+            serialize_quote(ticks, output, false, false);
+        }
+
+        /// \brief Serializes QuoteTick data with a configuration.
+        void serialize(
+            const std::vector<QuoteTick>& ticks,
+            const TickCodecConfig& config,
+            std::vector<uint8_t>& output) override final {
+            serialize_quote(ticks, config, output, false, false);
+        }
+
+        /// \brief Deserializes QuoteTick data from binary format.
+        void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<QuoteTick>& ticks) override final {
+            deserialize_quote(input, ticks);
+        }
+
+        /// \brief Deserializes QuoteTick data and retrieves the configuration.
+        void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<QuoteTick>& ticks,
+            TickCodecConfig& config) override final {
+            deserialize_quote(input, ticks, config);
+        }
+
+        /// \brief Serializes QuoteTickVol data into a binary format.
+        void serialize(
+            const std::vector<QuoteTickVol>& ticks,
+            std::vector<uint8_t>& output) override final {
+            serialize_quote(ticks, output, true, false);
+        }
+
+        /// \brief Serializes QuoteTickVol with a configuration.
+        void serialize(
+            const std::vector<QuoteTickVol>& ticks,
+            const TickCodecConfig& config,
+            std::vector<uint8_t>& output) override final {
+            serialize_quote(ticks, config, output, true, false);
+        }
+
+        /// \brief Deserializes QuoteTickVol data from binary format.
+        void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<QuoteTickVol>& ticks) override final {
+            deserialize_quote(input, ticks);
+        }
+
+        /// \brief Deserializes QuoteTickVol data and retrieves the configuration.
+        void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<QuoteTickVol>& ticks,
+            TickCodecConfig& config) override final {
+            deserialize_quote(input, ticks, config);
+        }
+
+        /// \brief Serializes QuoteTickL1 data into a binary format.
+        void serialize(
+            const std::vector<QuoteTickL1>& ticks,
+            std::vector<uint8_t>& output) override final {
+            serialize_quote(ticks, output, true, true);
+        }
+
+        /// \brief Serializes QuoteTickL1 with a configuration.
+        void serialize(
+            const std::vector<QuoteTickL1>& ticks,
+            const TickCodecConfig& config,
+            std::vector<uint8_t>& output) override final {
+            serialize_quote(ticks, config, output, true, true);
+        }
+
+        /// \brief Deserializes QuoteTickL1 data from binary format.
+        void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<QuoteTickL1>& ticks) override final {
+            deserialize_quote(input, ticks);
+        }
+
+        /// \brief Deserializes QuoteTickL1 data and retrieves the configuration.
+        void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<QuoteTickL1>& ticks,
+            TickCodecConfig& config) override final {
+            deserialize_quote(input, ticks, config);
+        }
+
+    private:
+        TickCodecConfig m_config; ///< Configuration used for encoding and decoding.
+
+        template<typename QuoteType>
+        void serialize_quote(
+            const std::vector<QuoteType>& ticks,
+            std::vector<uint8_t>& output,
+            bool force_volume,
+            bool mark_l1) {
 
             if (ticks.empty()) return;
             std::vector<MarketTick> market_ticks;
@@ -170,8 +270,7 @@ namespace dfh::compression {
             fill_market_ticks(ticks, market_ticks);
 
             const TickCodecConfig original_config = m_config;
-            TickCodecConfig adjusted_config = original_config;
-            adjusted_config.set_flag(TickStorageFlags::ENABLE_TICK_FLAGS, false);
+            const TickCodecConfig adjusted_config = prepare_quote_config(original_config, force_volume, mark_l1);
             try {
                 serialize(market_ticks, adjusted_config, output);
             } catch (...) {
@@ -181,23 +280,23 @@ namespace dfh::compression {
             m_config = original_config;
         }
 
-        /// \brief Serializes quote tick data with a specified configuration.
-        void serialize(
-            const std::vector<QuoteTick>& ticks,
+        template<typename QuoteType>
+        void serialize_quote(
+            const std::vector<QuoteType>& ticks,
             const TickCodecConfig& config,
-            std::vector<uint8_t>& output) override final {
+            std::vector<uint8_t>& output,
+            bool force_volume,
+            bool mark_l1) {
 
             if (ticks.empty()) {
                 set_codec_config(config);
                 return;
             }
-
             std::vector<MarketTick> market_ticks;
             market_ticks.reserve(ticks.size());
             fill_market_ticks(ticks, market_ticks);
 
-            TickCodecConfig adjusted_config = config;
-            adjusted_config.set_flag(TickStorageFlags::ENABLE_TICK_FLAGS, false);
+            const TickCodecConfig adjusted_config = prepare_quote_config(config, force_volume, mark_l1);
             try {
                 serialize(market_ticks, adjusted_config, output);
             } catch (...) {
@@ -207,45 +306,50 @@ namespace dfh::compression {
             set_codec_config(config);
         }
 
-        /// \brief Deserializes quote tick data from binary format.
-        void deserialize(
+        template<typename QuoteType>
+        void deserialize_quote(
             const std::vector<uint8_t>& input,
-            std::vector<QuoteTick>& ticks) override final {
+            std::vector<QuoteType>& ticks) {
 
             std::vector<MarketTick> market_ticks;
             deserialize(input, market_ticks);
             append_quote_ticks(market_ticks, ticks);
         }
 
-        /// \brief Deserializes quote tick data and retrieves the configuration.
-        void deserialize(
+        template<typename QuoteType>
+        void deserialize_quote(
             const std::vector<uint8_t>& input,
-            std::vector<QuoteTick>& ticks,
-            TickCodecConfig& config) override final {
+            std::vector<QuoteType>& ticks,
+            TickCodecConfig& config) {
 
             std::vector<MarketTick> market_ticks;
             deserialize(input, market_ticks, config);
             append_quote_ticks(market_ticks, ticks);
         }
 
-    private:
-        TickCodecConfig m_config; ///< Configuration used for encoding and decoding.
-
-        /// \brief Converts a batch of quotes into market ticks.
-        static void fill_market_ticks(const std::vector<QuoteTick>& source, std::vector<MarketTick>& target) {
+        template<typename QuoteType>
+        static void fill_market_ticks(const std::vector<QuoteType>& source, std::vector<MarketTick>& target) {
             target.clear();
             target.reserve(source.size());
             for (const auto& quote : source) {
-                target.push_back(dfh::to_market_tick(quote));
+            target.push_back(dfh::QuoteTickConversion<QuoteType>::to(quote));
             }
         }
 
-        /// \brief Appends quote ticks reconstructed from market ticks.
-        static void append_quote_ticks(const std::vector<MarketTick>& source, std::vector<QuoteTick>& target) {
+        template<typename QuoteType>
+        static void append_quote_ticks(const std::vector<MarketTick>& source, std::vector<QuoteType>& target) {
             target.reserve(target.size() + source.size());
             for (const auto& tick : source) {
-                target.push_back(dfh::from_market_tick(tick));
+                target.push_back(dfh::QuoteTickConversion<QuoteType>::from(tick));
             }
+        }
+
+        static TickCodecConfig prepare_quote_config(const TickCodecConfig& base, bool force_volume, bool mark_l1) {
+            TickCodecConfig cfg = base;
+            cfg.set_flag(TickStorageFlags::ENABLE_TICK_FLAGS, false);
+            if (force_volume) cfg.set_flag(TickStorageFlags::ENABLE_VOLUME, true);
+            if (mark_l1) cfg.set_flag(TickStorageFlags::L1_TWO_VOLUMES, true);
+            return cfg;
         }
 
         /// \brief Appends a MarketTick structure to the binary output buffer.

@@ -5,6 +5,10 @@
 /// \file QuoteTickVol.hpp
 /// \brief Defines QuoteTickVol structure for quote ticks with single volume value.
 
+#include "flags.hpp"
+#include "MarketTick.hpp"
+#include "QuoteTickConversions.hpp"
+
 namespace dfh {
 
     /// \struct QuoteTickVol
@@ -32,6 +36,25 @@ namespace dfh {
             , volume(v)
             , time_ms(ts)
             , received_ms(recv_ms) {}
+    };
+
+    template<>
+    struct QuoteTickConversion<QuoteTickVol> {
+        static MarketTick to(const QuoteTickVol& quote) noexcept {
+            MarketTick tick{};
+            tick.time_ms = quote.time_ms;
+            tick.received_ms = 0;
+            tick.ask = quote.ask;
+            tick.bid = quote.bid;
+            tick.last = (quote.ask + quote.bid) * 0.5;
+            tick.volume = quote.volume;
+            tick.flags = TickUpdateFlags::NONE;
+            return tick;
+        }
+
+        static QuoteTickVol from(const MarketTick& tick) noexcept {
+            return QuoteTickVol(tick.ask, tick.bid, tick.volume, tick.time_ms, 0);
+        }
     };
 
     static_assert(std::is_trivially_copyable_v<QuoteTickVol>,
