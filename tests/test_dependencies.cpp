@@ -101,9 +101,9 @@ void test_tick_codec_market_tick_roundtrip() {}
 } // namespace
 
 int main() {
-#ifndef _MSC_VER
+#   ifndef _MSC_VER
     test_tick_codec_market_tick_roundtrip();
-#endif
+#   endif
 
     // zlib-ng
     z_stream stream{};
@@ -124,10 +124,10 @@ int main() {
     }
     (void)simdmaxbitsd1_length(0, values.data(), static_cast<int>(values.size()));
 
-    #ifndef _MSC_VER
+#   ifndef _MSC_VER
     std::array<uint8_t, 128> encoded{};
     vbyte_compress_unsorted32(values.data(), encoded.data(), values.size());
-    #endif
+#   endif
 
     // zstd
     std::array<uint8_t, 256> compressed{};
@@ -145,11 +145,11 @@ int main() {
     const bool has_version_info = (mdbx_version.git.describe != nullptr);
 
     // Header-only deps
-    #ifndef _MSC_VER
+#   ifndef _MSC_VER
     auto now = time_shield::timestamp();
     auto iso = time_shield::to_iso8601(now);
     gzip::Compressor gzip_compressor;
-    #endif
+#   endif
 
     nlohmann::json json = {{"value", 42}};
     double json_value = json["value"].get<double>();
@@ -168,11 +168,11 @@ int main() {
     }
     (void)parsed_float;
 
-    #ifndef _MSC_VER
-    bool ok = !iso.empty() && json_value == 42.0 && has_version_info;
-    (void)gzip_compressor;
-    return ok ? 0 : 1;
-    #else
-    return has_version_info ? 0 : 1;
-    #endif
+#   ifndef _MSC_VER
+        bool ok = !iso.empty() && json_value == 42.0 && has_version_info;
+        (void)gzip_compressor;
+        return ok ? 0 : 1;
+#   else
+        return has_version_info ? 0 : 1;
+#   endif
 }
