@@ -133,6 +133,11 @@ if(DFH_BUILD_TESTS)
     target_compile_features(test_tick_codec_quotel1_roundtrip PRIVATE cxx_std_17)
     add_test(NAME test_tick_codec_quotel1_roundtrip COMMAND test_tick_codec_quotel1_roundtrip)
 
+    add_executable(test_tick_codec_trade_roundtrip tests/test_tick_codec_trade_roundtrip.cpp)
+    target_link_libraries(test_tick_codec_trade_roundtrip PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
+    target_compile_features(test_tick_codec_trade_roundtrip PRIVATE cxx_std_17)
+    add_test(NAME test_tick_codec_trade_roundtrip COMMAND test_tick_codec_trade_roundtrip)
+
     if(DFH_BUILD_LEGACY_TESTS)
         file(GLOB DFH_TEST_SOURCES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tests/*.cpp")
         foreach(test_src IN LISTS DFH_TEST_SOURCES)
