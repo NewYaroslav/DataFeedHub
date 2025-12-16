@@ -5,6 +5,7 @@
 /// \file TickCompressorV1.hpp
 /// \brief Provides functionality for compressing and decompressing market tick data.
 
+#include "../../data/ticks/QuoteTick.hpp"
 #include "TickCompressorV1/TickCompressionContextV1.hpp"
 #include "TickCompressorV1/TickEncoderV1.hpp"
 #include "TickCompressorV1/TickDecoderV1.hpp"
@@ -86,7 +87,90 @@ namespace dfh::compression {
             config = m_config;
         }
 
+        /// \brief Serializes quote tick data into a binary format.
+        void serialize(
+            const std::vector<QuoteTick>& ticks,
+            std::vector<uint8_t>& output) override final {
+            if (ticks.empty()) return;
+
+            std::vector<MarketTick> market_ticks;
+            market_ticks.reserve(ticks.size());
+            fill_market_ticks(ticks, market_ticks);
+
+            TickCodecConfig original_config = m_config;
+            TickCodecConfig adjusted_config = original_config;
+            adjusted_config.set_flag(TickStorageFlags::ENABLE_TICK_FLAGS, false);
+            try {
+                serialize(market_ticks, adjusted_config, output);
+            } catch (...) {
+                m_config = original_config;
+                throw;
+            }
+            m_config = original_config;
+        }
+
+        /// \brief Serializes quote tick data with a specified configuration.
+        void serialize(
+            const std::vector<QuoteTick>& ticks,
+            const TickCodecConfig& config,
+            std::vector<uint8_t>& output) override final {
+            if (ticks.empty()) {
+                set_codec_config(config);
+                return;
+            }
+
+            std::vector<MarketTick> market_ticks;
+            market_ticks.reserve(ticks.size());
+            fill_market_ticks(ticks, market_ticks);
+
+            TickCodecConfig adjusted_config = config;
+            adjusted_config.set_flag(TickStorageFlags::ENABLE_TICK_FLAGS, false);
+            try {
+                serialize(market_ticks, adjusted_config, output);
+            } catch (...) {
+                set_codec_config(config);
+                throw;
+            }
+            set_codec_config(config);
+        }
+
+        /// \brief Deserializes quote tick data from binary format.
+        void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<QuoteTick>& ticks) override final {
+            std::vector<MarketTick> market_ticks;
+            decompress(input, market_ticks);
+            append_quote_ticks(market_ticks, ticks);
+        }
+
+        /// \brief Deserializes quote tick data and retrieves the configuration.
+        void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<QuoteTick>& ticks,
+            TickCodecConfig& config) override final {
+            std::vector<MarketTick> market_ticks;
+            decompress(input, market_ticks, config);
+            append_quote_ticks(market_ticks, ticks);
+        }
+
 	private:
+
+        /// \brief Converts batches of quotes into market ticks for compression.
+        static void fill_market_ticks(const std::vector<QuoteTick>& source, std::vector<MarketTick>& target) {
+            target.clear();
+            target.reserve(source.size());
+            for (const auto& quote : source) {
+                target.push_back(dfh::to_market_tick(quote));
+            }
+        }
+
+        /// \brief Converts decompressed market ticks back into quotes.
+        static void append_quote_ticks(const std::vector<MarketTick>& source, std::vector<QuoteTick>& target) {
+            target.reserve(target.size() + source.size());
+            for (const auto& tick : source) {
+                target.push_back(dfh::from_market_tick(tick));
+            }
+        }
 
         /// \brief Compresses market tick data.
         /// \param ticks A vector of MarketTick structures representing the tick data.

@@ -5,6 +5,14 @@
 /// \file ITickSerializer.hpp
 /// \brief Defines an interface for tick serialization and deserialization.
 
+#include <vector>
+
+namespace dfh {
+    struct MarketTick;
+    struct QuoteTick;
+    struct TickCodecConfig;
+}
+
 namespace dfh::compression {
 
     /// \class ITickSerializer
@@ -56,6 +64,38 @@ namespace dfh::compression {
         virtual void deserialize(
             const std::vector<uint8_t>& input,
             std::vector<dfh::MarketTick>& ticks,
+            dfh::TickCodecConfig& config) = 0;
+
+        /// \brief Serializes quote tick data into a binary format.
+        /// \param ticks A vector of QuoteTick structures.
+        /// \param output A vector where the binary data will be stored.
+        virtual void serialize(
+            const std::vector<dfh::QuoteTick>& ticks,
+            std::vector<uint8_t>& output) = 0;
+
+        /// \brief Serializes quote tick data with a specified configuration.
+        /// \param ticks A vector of QuoteTick structures.
+        /// \param config The serialization configuration.
+        /// \param output A vector where the binary data will be stored.
+        virtual void serialize(
+            const std::vector<dfh::QuoteTick>& ticks,
+            const dfh::TickCodecConfig& config,
+            std::vector<uint8_t>& output) = 0;
+
+        /// \brief Deserializes quote tick data from binary format.
+        /// \param input A vector of binary data.
+        /// \param ticks A vector where the deserialized quote tick data will be stored.
+        virtual void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<dfh::QuoteTick>& ticks) = 0;
+
+        /// \brief Deserializes quote tick data and retrieves the configuration.
+        /// \param input A vector of binary data.
+        /// \param ticks A vector where the deserialized quote tick data will be stored.
+        /// \param config A reference to store the retrieved configuration.
+        virtual void deserialize(
+            const std::vector<uint8_t>& input,
+            std::vector<dfh::QuoteTick>& ticks,
             dfh::TickCodecConfig& config) = 0;
     };
 

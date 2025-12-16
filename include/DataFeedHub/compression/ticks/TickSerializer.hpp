@@ -5,6 +5,10 @@
 /// \file TickSerializer.hpp
 /// \brief Selects and applies the appropriate tick serializer based on configuration.
 
+#include "../../data/ticks/QuoteTick.hpp"
+#include "TickBinarySerializerV1.hpp"
+#include "TickCompressorV1.hpp"
+
 namespace dfh::compression {
 
     /// \class TickSerializer
@@ -66,6 +70,23 @@ namespace dfh::compression {
             m_serializer->serialize(ticks, config, output);
         }
 
+        /// \brief Serializes quote tick data into a binary format.
+        void serialize(
+                const std::vector<dfh::QuoteTick>& ticks,
+                std::vector<uint8_t>& output) override final {
+            if (!m_serializer) throw std::runtime_error("No serializer selected.");
+            m_serializer->serialize(ticks, output);
+        }
+
+        /// \brief Serializes quote tick data with a specified configuration.
+        void serialize(
+                const std::vector<dfh::QuoteTick>& ticks,
+                const dfh::TickCodecConfig& config,
+                std::vector<uint8_t>& output) override final {
+            select_serializer(config);
+            m_serializer->serialize(ticks, config, output);
+        }
+
         /// \brief Deserializes tick data from binary format.
         /// \param input A vector of binary data.
         /// \param ticks A vector where the deserialized tick data will be stored.
@@ -87,6 +108,23 @@ namespace dfh::compression {
         void deserialize(
                 const std::vector<uint8_t>& input,
                 std::vector<dfh::MarketTick>& ticks,
+                dfh::TickCodecConfig& config) override final {
+            select_serializer(input);
+            m_serializer->deserialize(input, ticks, config);
+        }
+
+        /// \brief Deserializes quote tick data from binary format.
+        void deserialize(
+                const std::vector<uint8_t>& input,
+                std::vector<dfh::QuoteTick>& ticks) override final {
+            select_serializer(input);
+            m_serializer->deserialize(input, ticks);
+        }
+
+        /// \brief Deserializes quote tick data and retrieves the configuration.
+        void deserialize(
+                const std::vector<uint8_t>& input,
+                std::vector<dfh::QuoteTick>& ticks,
                 dfh::TickCodecConfig& config) override final {
             select_serializer(input);
             m_serializer->deserialize(input, ticks, config);

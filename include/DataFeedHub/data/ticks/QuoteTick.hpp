@@ -2,10 +2,16 @@
 #ifndef _DFH_DATA_QUOTE_TICK_HPP_INCLUDED
 #define _DFH_DATA_QUOTE_TICK_HPP_INCLUDED
 
+#include "flags.hpp"
+#include "MarketTick.hpp"
+
 /// \file QuoteTick.hpp
-/// \brief Defines the QuoteTick structure for tick data without volume.
+/// \brief Defines the QuoteTick structure for tick data without volume and helpers.
 
 namespace dfh {
+
+    /// \brief Forward declaration of MarketTick to keep conversions inline.
+    struct MarketTick;
 
     /// \struct QuoteTick
     /// \brief Simplified quote tick that stores bid/ask prices and timestamps.
@@ -23,6 +29,34 @@ namespace dfh {
         constexpr QuoteTick(double a, double b, std::uint64_t ts, std::uint64_t recv_ms = 0) noexcept
             : ask(a), bid(b), time_ms(ts), received_ms(recv_ms) {}
     };
+
+    /// \brief Converts a quote tick into the internal MarketTick representation.
+    /// \param quote Source quote tick.
+    /// \return MarketTick populated with available quote data.
+    [[nodiscard]] inline MarketTick to_market_tick(const QuoteTick& quote) noexcept {
+        MarketTick tick;
+        tick.time_ms = quote.time_ms;
+        tick.received_ms = 0;
+        tick.ask = quote.ask;
+        tick.bid = quote.bid;
+        tick.last = (quote.ask + quote.bid) * 0.5;
+        tick.volume = 0.0;
+        tick.flags = TickUpdateFlags::NONE;
+        return tick;
+    }
+
+    /// \brief Reconstructs a QuoteTick from a MarketTick decoded by the compressor.
+    /// \param tick Source market tick.
+    /// \return QuoteTick restored from the best available data.
+    [[nodiscard]] inline QuoteTick from_market_tick(const MarketTick& tick) noexcept {
+        double price = tick.last;
+        if (price == 0.0 && tick.ask != 0.0) {
+            price = tick.ask;
+        } else if (price == 0.0 && tick.bid != 0.0) {
+            price = tick.bid;
+        }
+        return QuoteTick(price, price, tick.time_ms, 0);
+    }
 
     static_assert(std::is_trivially_copyable_v<QuoteTick>,
                   "QuoteTick must remain trivially copyable for zero-copy transports.");
