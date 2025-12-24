@@ -5,16 +5,8 @@
 /// \file ITickSerializer.hpp
 /// \brief Defines an interface for tick serialization and deserialization.
 
+#include "DataFeedHub/data.hpp"
 #include <vector>
-
-namespace dfh {
-    struct MarketTick;
-    struct QuoteTick;
-    struct QuoteTickVol;
-    struct QuoteTickL1;
-    struct TradeTick;
-    struct TickCodecConfig;
-}
 
 namespace dfh::compression {
 

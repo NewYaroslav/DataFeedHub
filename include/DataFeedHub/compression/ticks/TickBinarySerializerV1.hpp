@@ -8,12 +8,12 @@
 #include <cstddef>
 #include <cstring>
 
-#include "../../data/ticks/QuoteTick.hpp"
-#include "../../data/ticks/QuoteTickVol.hpp"
-#include "../../data/ticks/QuoteTickL1.hpp"
-#include "../../data/ticks/TradeTick.hpp"
-#include "../../data/ticks/QuoteTickConversions.hpp"
-#include "../../data/ticks/TickCodecConfig.hpp"
+#include "DataFeedHub/data/ticks/QuoteTick.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickVol.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickL1.hpp"
+#include "DataFeedHub/data/ticks/TradeTick.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickConversions.hpp"
+#include "DataFeedHub/data/ticks/TickCodecConfig.hpp"
 #include "TradeIdCodec.hpp"
 #include "ITickSerializer.hpp"
 

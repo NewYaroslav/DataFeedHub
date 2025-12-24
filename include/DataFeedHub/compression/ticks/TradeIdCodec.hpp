@@ -5,8 +5,8 @@
 /// \file TradeIdCodec.hpp
 /// \brief Encodes and decodes delta-encoded trade identifiers.
 
-#include "../../utils/vbyte.hpp"
-#include "../utils/zig_zag_delta.hpp"
+#include "DataFeedHub/utils/vbyte.hpp"
+#include "DataFeedHub/compression/utils/zig_zag_delta.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <vector>

@@ -5,15 +5,15 @@
 /// \file TickSerializer.hpp
 /// \brief Selects and applies the appropriate tick serializer based on configuration.
 
-#include "../../data/ticks/QuoteTick.hpp"
-#include "../../data/ticks/QuoteTickVol.hpp"
-#include "../../data/ticks/QuoteTickL1.hpp"
-#include "../../data/ticks/TradeTick.hpp"
-#include "../../data/ticks/QuoteTickVol.hpp"
-#include "../../data/ticks/QuoteTickL1.hpp"
-#include "../../data/ticks/QuoteTickConversions.hpp"
-#include "../../data/ticks/QuoteTickVol.hpp"
-#include "../../data/ticks/QuoteTickL1.hpp"
+#include "DataFeedHub/data/ticks/QuoteTick.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickVol.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickL1.hpp"
+#include "DataFeedHub/data/ticks/TradeTick.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickVol.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickL1.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickConversions.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickVol.hpp"
+#include "DataFeedHub/data/ticks/QuoteTickL1.hpp"
 #include "TickBinarySerializerV1.hpp"
 #include "TickCompressorV1.hpp"
 
