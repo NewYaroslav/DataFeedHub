@@ -9,11 +9,12 @@
 #include <utility>
 
 #include "DataFeedHub/data/ticks/flags.hpp"
-#include "DataFeedHub/data/ticks/MarketTick.hpp"
-#include "DataFeedHub/data/ticks/QuoteTick.hpp"
-#include "DataFeedHub/data/ticks/ValueTick.hpp"
 
 namespace dfh {
+
+    struct MarketTick;
+    struct QuoteTick;
+    struct ValueTick;
 
     /// \brief Generic structure for a single tick enriched with metadata.
     template <typename TickType>

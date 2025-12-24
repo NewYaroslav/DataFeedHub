@@ -5,8 +5,8 @@
 /// \file QuoteTickL1.hpp
 /// \brief Defines the QuoteTickL1 structure for L1 quote ticks with bid/ask volumes.
 
-#include "flags.hpp"
-#include "MarketTick.hpp"
+#include <cstdint>
+#include <type_traits>
 
 namespace dfh {
 
@@ -48,7 +48,5 @@ namespace dfh {
                   "QuoteTickL1 layout changed unexpectedly.");
 
 } // namespace dfh
-
-#include "DataFeedHub/data/ticks/TickConversions.hpp"
 
 #endif // _DFH_DATA_QUOTE_TICK_L1_HPP_INCLUDED

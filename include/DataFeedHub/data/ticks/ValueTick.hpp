@@ -5,6 +5,9 @@
 /// \file ValueTick.hpp
 /// \brief Defines the ValueTick structure for simplified tick data.
 
+#include <cstdint>
+#include <type_traits>
+
 namespace dfh {
 
     /// \struct ValueTick

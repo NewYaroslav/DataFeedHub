@@ -5,8 +5,8 @@
 /// \file QuoteTickVol.hpp
 /// \brief Defines QuoteTickVol structure for quote ticks with single volume value.
 
-#include "flags.hpp"
-#include "MarketTick.hpp"
+#include <cstdint>
+#include <type_traits>
 
 namespace dfh {
 
@@ -43,7 +43,5 @@ namespace dfh {
                   "QuoteTickVol layout changed unexpectedly.");
 
 } // namespace dfh
-
-#include "DataFeedHub/data/ticks/TickConversions.hpp"
 
 #endif // _DFH_DATA_QUOTE_TICK_VOL_HPP_INCLUDED

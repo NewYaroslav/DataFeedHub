@@ -37,6 +37,7 @@
 #include "ticks/TickMetadata.hpp"
 #include "ticks/TickCodecConfig.hpp"
 #include "ticks/TickSpan.hpp"
+#include "ticks/TickConversions.hpp"
 #if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 #include "ticks/TickJson.hpp"
 #endif

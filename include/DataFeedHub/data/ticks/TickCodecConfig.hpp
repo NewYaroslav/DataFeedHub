@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
-#include <vector>
 
 #include "DataFeedHub/data/ticks/flags.hpp"
 

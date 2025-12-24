@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <type_traits>
-#include <vector>
 
 #include "DataFeedHub/data/ticks/enums.hpp"
 
@@ -109,7 +108,5 @@ namespace dfh {
     static_assert(sizeof(TradeTick) == 32, "TradeTick size must be 32 bytes (layout changed?)");
 
 } // namespace dfh
-
-#include "DataFeedHub/data/ticks/TickConversions.hpp"
 
 #endif // _DFH_DATA_TRADE_TICK_HPP_INCLUDED

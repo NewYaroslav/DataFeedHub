@@ -2,16 +2,13 @@
 #ifndef _DFH_DATA_QUOTE_TICK_HPP_INCLUDED
 #define _DFH_DATA_QUOTE_TICK_HPP_INCLUDED
 
-#include "flags.hpp"
-#include "MarketTick.hpp"
+#include <cstdint>
+#include <type_traits>
 
 /// \file QuoteTick.hpp
 /// \brief Defines the QuoteTick structure for tick data without volume and helpers.
 
 namespace dfh {
-
-    /// \brief Forward declaration of MarketTick to keep conversions inline.
-    struct MarketTick;
 
     /// \struct QuoteTick
     /// \brief Simplified quote tick that stores bid/ask prices and timestamps.
@@ -36,7 +33,5 @@ namespace dfh {
                   "QuoteTick layout changed unexpectedly.");
 
 } // namespace dfh
-
-#include "DataFeedHub/data/ticks/TickConversions.hpp"
 
 #endif // _DFH_DATA_QUOTE_TICK_HPP_INCLUDED

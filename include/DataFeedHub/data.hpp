@@ -53,6 +53,7 @@
 
 #include "data/common.hpp"
 #include "data/ticks.hpp"
+#include "data/ticks/TickConversions.hpp"
 #if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 #include "data/ticks/TickJson.hpp"
 #endif

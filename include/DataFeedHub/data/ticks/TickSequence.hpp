@@ -9,11 +9,12 @@
 #include <vector>
 
 #include "DataFeedHub/data/ticks/flags.hpp"
-#include "DataFeedHub/data/ticks/MarketTick.hpp"
-#include "DataFeedHub/data/ticks/QuoteTick.hpp"
-#include "DataFeedHub/data/ticks/ValueTick.hpp"
 
 namespace dfh {
+
+    struct MarketTick;
+    struct QuoteTick;
+    struct ValueTick;
 
     /// \brief Шаблонная структура последовательности тиков и связанных данных.
     template <typename TickType>

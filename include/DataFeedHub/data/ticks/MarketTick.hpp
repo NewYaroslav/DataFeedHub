@@ -5,15 +5,8 @@
 /// \file MarketTick.hpp
 /// \brief Описывает структуру MarketTick из домена data и её JSON-помощники.
 
-#include <cstddef>
 #include <cstdint>
-#include <deque>
-#include <list>
-#include <map>
-#include <string>
 #include <type_traits>
-#include <unordered_map>
-#include <vector>
 
 #include "DataFeedHub/data/ticks/flags.hpp"
 
