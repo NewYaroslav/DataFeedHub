@@ -164,6 +164,26 @@ if(DFH_BUILD_TESTS)
     target_compile_features(test_header_compile_data_ticks PRIVATE cxx_std_17)
     add_test(NAME test_header_compile_data_ticks COMMAND test_header_compile_data_ticks)
 
+    add_executable(test_headers_compile_ticks tests/test_data_ticks_headers_compile.cpp)
+    target_link_libraries(test_headers_compile_ticks PRIVATE DataFeedHub ${JSON_TARGET})
+    target_compile_features(test_headers_compile_ticks PRIVATE cxx_std_17)
+    add_test(NAME test_headers_compile_ticks COMMAND test_headers_compile_ticks)
+
+    add_executable(test_headers_compile_umbrella tests/test_data_umbrella_headers_compile.cpp)
+    target_link_libraries(test_headers_compile_umbrella PRIVATE DataFeedHub ${JSON_TARGET})
+    target_compile_features(test_headers_compile_umbrella PRIVATE cxx_std_17)
+    add_test(NAME test_headers_compile_umbrella COMMAND test_headers_compile_umbrella)
+
+    add_executable(test_tick_conversions_roundtrip tests/test_tick_conversions_roundtrip.cpp)
+    target_link_libraries(test_tick_conversions_roundtrip PRIVATE DataFeedHub)
+    target_compile_features(test_tick_conversions_roundtrip PRIVATE cxx_std_17)
+    add_test(NAME test_tick_conversions_roundtrip COMMAND test_tick_conversions_roundtrip)
+
+    add_executable(test_tick_json_roundtrip tests/test_tick_json_roundtrip.cpp)
+    target_link_libraries(test_tick_json_roundtrip PRIVATE DataFeedHub ${JSON_TARGET})
+    target_compile_features(test_tick_json_roundtrip PRIVATE cxx_std_17)
+    add_test(NAME test_tick_json_roundtrip COMMAND test_tick_json_roundtrip)
+
     if(DFH_BUILD_LEGACY_TESTS)
         file(GLOB DFH_TEST_SOURCES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tests/*.cpp")
         foreach(test_src IN LISTS DFH_TEST_SOURCES)

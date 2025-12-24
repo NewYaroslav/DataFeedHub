@@ -5,7 +5,16 @@
 /// \file TickSpan.hpp
 /// \brief Non-owning span for contiguous tick ranges.
 
+#include <cstddef>
+
 namespace dfh {
+
+    struct ValueTick;
+    struct QuoteTick;
+    struct QuoteTickVol;
+    struct QuoteTickL1;
+    struct MarketTick;
+    struct TradeTick;
 
     /// \struct TickSpan
     /// \brief Lightweight read-only view over a contiguous range of ticks.

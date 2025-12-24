@@ -5,6 +5,16 @@
 /// \file TickJson.hpp
 /// \brief JSON (де)сериализация для DTO тиков.
 
+#include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <list>
+#include <map>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "DataFeedHub/data/ticks/BidAskRestoreConfig.hpp"
 #include "DataFeedHub/data/ticks/MarketTick.hpp"
 #include "DataFeedHub/data/ticks/QuoteTick.hpp"
