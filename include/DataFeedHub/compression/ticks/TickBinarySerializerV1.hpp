@@ -48,7 +48,7 @@ namespace dfh::compression {
         void serialize(
             const std::vector<MarketTick>& ticks,
             std::vector<uint8_t>& output) override final {
-            serialize_market_ticks(ticks, output, nullptr);
+            serialize_market_ticks(ticks, output);
         }
 
         /// \copydoc ITickSerializer::serialize(const std::vector<MarketTick>&, const TickCodecConfig&, std::vector<uint8_t>&)
@@ -59,7 +59,7 @@ namespace dfh::compression {
             std::vector<uint8_t>& output) override final {
 
             m_config = config;
-            serialize_market_ticks(ticks, output, nullptr);
+            serialize_market_ticks(ticks, output);
         }
 
         /// \copydoc ITickSerializer::deserialize(const std::vector<uint8_t>&, std::vector<MarketTick>&)
@@ -225,7 +225,7 @@ namespace dfh::compression {
             const TickCodecConfig adjusted_config = prepare_quote_config(original_config, force_volume, mark_l1, has_trade_ids);
             try {
                 m_config = adjusted_config;
-                serialize_market_ticks(market_ticks, output, has_trade_ids ? &trade_ids : nullptr);
+                serialize_market_ticks(market_ticks, output, trade_ids);
             } catch (...) {
                 m_config = original_config;
                 throw;
@@ -255,7 +255,7 @@ namespace dfh::compression {
             const TickCodecConfig adjusted_config = prepare_quote_config(config, force_volume, mark_l1, has_trade_ids);
             try {
                 m_config = adjusted_config;
-                serialize_market_ticks(market_ticks, output, has_trade_ids ? &trade_ids : nullptr);
+                serialize_market_ticks(market_ticks, output, trade_ids);
             } catch (...) {
                 set_codec_config(config);
                 throw;
@@ -334,7 +334,7 @@ namespace dfh::compression {
         void serialize_market_ticks(
             const std::vector<MarketTick>& ticks,
             std::vector<uint8_t>& output,
-            const std::vector<uint64_t>* trade_ids) {
+            const std::vector<uint64_t>& trade_ids = {}) {
 
             if (ticks.empty()) {
                 return;
@@ -352,7 +352,7 @@ namespace dfh::compression {
                 throw std::invalid_argument("Price or volume digits exceed maximum allowed digits.");
             }
 
-            if (trade_ids && trade_ids->size() != ticks.size()) {
+            if (!trade_ids.empty() && trade_ids.size() != ticks.size()) {
                 throw std::invalid_argument("Trade identifier count must match number of ticks.");
             }
 
@@ -388,8 +388,8 @@ namespace dfh::compression {
                 append_binary(output, tick);
             }
 
-            if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID) && trade_ids && !trade_ids->empty()) {
-                encode_trade_id_deltas(output, *trade_ids);
+            if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID) && !trade_ids.empty()) {
+                encode_trade_id_deltas(output, trade_ids);
             }
         }
 
