@@ -184,6 +184,10 @@ if(DFH_BUILD_TESTS)
     target_compile_features(test_tick_json_roundtrip PRIVATE cxx_std_17)
     add_test(NAME test_tick_json_roundtrip COMMAND test_tick_json_roundtrip)
 
+    add_test(NAME lint_no_reverse_includes
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/lint/check_no_reverse_includes.cmake
+    )
+
     if(DFH_BUILD_LEGACY_TESTS)
         file(GLOB DFH_TEST_SOURCES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tests/*.cpp")
         foreach(test_src IN LISTS DFH_TEST_SOURCES)
