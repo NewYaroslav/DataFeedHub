@@ -15,8 +15,6 @@
 #include <nlohmann/json.hpp>
 #endif
 
-#include "QuoteTickConversions.hpp"
-
 namespace dfh {
 
     /// \struct TradeTick
@@ -114,29 +112,6 @@ namespace dfh {
                   "TradeTick must remain trivially copyable for zero-copy transports.");
     static_assert(sizeof(TradeTick) == 32, "TradeTick size must be 32 bytes (layout changed?)");
 
-    template<>
-    struct QuoteTickConversion<TradeTick> {
-        static MarketTick to(const TradeTick& quote) noexcept {
-            MarketTick tick{};
-            tick.time_ms = quote.time_ms;
-            tick.received_ms = 0;
-            tick.ask = quote.price;
-            tick.bid = quote.price;
-            tick.last = quote.price;
-            tick.volume = quote.volume;
-            tick.flags = TickUpdateFlags::LAST_UPDATED;
-            return tick;
-        }
-
-        static TradeTick from(const MarketTick& tick, std::uint64_t trade_id = 0) noexcept {
-            return TradeTick(tick.last, tick.volume, tick.time_ms, trade_id, TradeSide::Unknown);
-        }
-
-        static void collect_trade_ids(const TradeTick& quote, std::vector<uint64_t>& ids) noexcept {
-            ids.push_back(quote.trade_id());
-        }
-    };
-
 #if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
 
     /// \brief Сериализует TradeTick в JSON.
@@ -172,5 +147,7 @@ namespace dfh {
 #endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 } // namespace dfh
+
+#include "DataFeedHub/data/ticks/TickConversions.hpp"
 
 #endif // _DFH_DATA_TRADE_TICK_HPP_INCLUDED

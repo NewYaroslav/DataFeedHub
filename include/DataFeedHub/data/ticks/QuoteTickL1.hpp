@@ -7,7 +7,6 @@
 
 #include "flags.hpp"
 #include "MarketTick.hpp"
-#include "QuoteTickConversions.hpp"
 
 namespace dfh {
 
@@ -41,28 +40,6 @@ namespace dfh {
             , bid_volume(bv)
             , time_ms(ts)
             , received_ms(recv_ms) {}
-    };
-
-    template<>
-    struct QuoteTickConversion<QuoteTickL1> {
-        static MarketTick to(const QuoteTickL1& quote) noexcept {
-            MarketTick tick{};
-            tick.time_ms = quote.time_ms;
-            tick.received_ms = 0;
-            tick.ask = quote.ask;
-            tick.bid = quote.bid;
-            tick.last = (quote.ask + quote.bid) * 0.5;
-            tick.volume = quote.ask_volume + quote.bid_volume;
-            tick.flags = TickUpdateFlags::NONE;
-            return tick;
-        }
-
-        static QuoteTickL1 from(const MarketTick& tick, std::uint64_t trade_id = 0) noexcept {
-            const double half_volume = tick.volume * 0.5;
-            return QuoteTickL1(tick.ask, tick.bid, half_volume, half_volume, tick.time_ms, 0);
-        }
-
-        static void collect_trade_ids(const QuoteTickL1&, std::vector<std::uint64_t>&) noexcept {}
     };
 
     static_assert(std::is_trivially_copyable_v<QuoteTickL1>,
@@ -99,5 +76,7 @@ namespace dfh {
 #endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 } // namespace dfh
+
+#include "DataFeedHub/data/ticks/TickConversions.hpp"
 
 #endif // _DFH_DATA_QUOTE_TICK_L1_HPP_INCLUDED
