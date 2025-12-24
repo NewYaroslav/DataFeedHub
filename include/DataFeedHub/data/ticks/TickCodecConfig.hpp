@@ -5,6 +5,18 @@
 /// \file TickCodecConfig.hpp
 /// \brief Defines configuration for encoding and decoding tick sequences.
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+#include <vector>
+
+#include "DataFeedHub/data/ticks/flags.hpp"
+
+#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
+#include <nlohmann/json.hpp>
+#endif
+
 namespace dfh {
 
     /// \struct TickCodecConfig

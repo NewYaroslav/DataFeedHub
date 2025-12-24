@@ -5,6 +5,22 @@
 /// \file MarketTick.hpp
 /// \brief Описывает структуру MarketTick из домена data и её JSON-помощники.
 
+#include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <list>
+#include <map>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+#include <vector>
+
+#include "DataFeedHub/data/ticks/flags.hpp"
+
+#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
+#include <nlohmann/json.hpp>
+#endif
+
 namespace dfh {
 
     /// \struct MarketTick

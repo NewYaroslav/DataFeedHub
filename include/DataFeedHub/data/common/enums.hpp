@@ -5,6 +5,16 @@
 /// \file enums.hpp
 /// \brief Enumerations for trading parameters.
 
+#include <cstddef>
+#include <cstdint>
+#include <ostream>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
+
+#include <nlohmann/json.hpp>
+
 namespace dfh {
 
     /// \enum MarketType

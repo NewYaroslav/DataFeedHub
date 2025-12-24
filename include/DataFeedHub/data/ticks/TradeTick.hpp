@@ -5,6 +5,16 @@
 /// \file TradeTick.hpp
 /// \brief Описывает TradeTick и вспомогательные утилиты для упаковки метаданных сделок.
 
+#include <cstdint>
+#include <type_traits>
+#include <vector>
+
+#include "DataFeedHub/data/ticks/enums.hpp"
+
+#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
+#include <nlohmann/json.hpp>
+#endif
+
 #include "QuoteTickConversions.hpp"
 
 namespace dfh {

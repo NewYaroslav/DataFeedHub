@@ -1,0 +1,1 @@
+#include "DataFeedHub/data/ticks/QuoteTickL1.hpp"

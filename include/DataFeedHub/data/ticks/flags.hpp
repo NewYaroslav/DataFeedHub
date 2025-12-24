@@ -5,6 +5,9 @@
 /// \file flags.hpp
 /// \brief Defines flags for tick data status, updates, and storage.
 
+#include <cstddef>
+#include <cstdint>
+
 namespace dfh {
 
     /// \enum TickStatusFlags

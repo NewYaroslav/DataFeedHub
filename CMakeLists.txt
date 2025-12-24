@@ -148,6 +148,22 @@ if(DFH_BUILD_TESTS)
     target_compile_features(test_tick_codec_compat_market_tradebased_to_trade PRIVATE cxx_std_17)
     add_test(NAME test_tick_codec_compat_market_tradebased_to_trade COMMAND test_tick_codec_compat_market_tradebased_to_trade)
 
+    add_executable(test_header_compile_data_ticks
+        tests/header_compile/main.cpp
+        tests/header_compile/include_data_umbrella.cpp
+        tests/header_compile/include_quote_tick.cpp
+        tests/header_compile/include_quote_tick_vol.cpp
+        tests/header_compile/include_quote_tick_l1.cpp
+        tests/header_compile/include_trade_tick.cpp
+        tests/header_compile/include_market_tick.cpp
+        tests/header_compile/include_tick_codec_config.cpp
+        tests/header_compile/include_tick_conversions.cpp
+        tests/header_compile/include_tick_json.cpp
+    )
+    target_link_libraries(test_header_compile_data_ticks PRIVATE DataFeedHub ${JSON_TARGET})
+    target_compile_features(test_header_compile_data_ticks PRIVATE cxx_std_17)
+    add_test(NAME test_header_compile_data_ticks COMMAND test_header_compile_data_ticks)
+
     if(DFH_BUILD_LEGACY_TESTS)
         file(GLOB DFH_TEST_SOURCES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tests/*.cpp")
         foreach(test_src IN LISTS DFH_TEST_SOURCES)
