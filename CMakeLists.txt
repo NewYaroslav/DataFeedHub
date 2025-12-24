@@ -184,6 +184,11 @@ if(DFH_BUILD_TESTS)
     target_compile_features(test_tick_json_roundtrip PRIVATE cxx_std_17)
     add_test(NAME test_tick_json_roundtrip COMMAND test_tick_json_roundtrip)
 
+    add_executable(test_header_smoke_ticks tests/test_header_smoke_ticks.cpp)
+    target_link_libraries(test_header_smoke_ticks PRIVATE DataFeedHub ${JSON_TARGET})
+    target_compile_features(test_header_smoke_ticks PRIVATE cxx_std_17)
+    add_test(NAME header_smoke_ticks COMMAND test_header_smoke_ticks)
+
     add_test(NAME lint_no_reverse_includes
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/lint/check_no_reverse_includes.cmake
     )
