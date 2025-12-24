@@ -1,3 +1,4 @@
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -9,7 +10,6 @@
 #define DFH_USE_JSON 1
 #define DFH_USE_NLOHMANN_JSON 1
 #include <DataFeedHub/compression.hpp>
-#include <DataFeedHub/data.hpp>
 #include <DataFeedHub/data/ticks/enums.hpp>
 #endif
 
@@ -53,7 +53,7 @@ void assert_trade_ticks_equal(const std::vector<dfh::TradeTick>& expected,
     }
 }
 
-void roundtrip_compressor(const std::vector<std::uint64_t>& trade_ids) {
+std::vector<std::uint8_t> roundtrip_compressor(const std::vector<std::uint64_t>& trade_ids) {
     // Проверяем полный цикл через TickCompressorV1.
     const auto ticks = build_trade_ticks(trade_ids);
 
@@ -77,6 +77,7 @@ void roundtrip_compressor(const std::vector<std::uint64_t>& trade_ids) {
     compressor.deserialize(buffer, decoded);
 
     assert_trade_ticks_equal(ticks, decoded);
+    return buffer;
 }
 
 void roundtrip_serializer(const std::vector<std::uint64_t>& trade_ids) {
@@ -109,20 +110,31 @@ void roundtrip_serializer(const std::vector<std::uint64_t>& trade_ids) {
 int run_trade_id_codec_tests() {
 #ifndef _MSC_VER
     std::vector<std::uint64_t> sequential_ids;
-    sequential_ids.reserve(1000);
-    for (std::uint64_t i = 0; i < 1000; ++i) {
-        sequential_ids.push_back(100 + i);
+    sequential_ids.reserve(2000);
+    for (std::uint64_t i = 0; i < 2000; ++i) {
+        sequential_ids.push_back(1'000'000ULL + i);
     }
-    roundtrip_compressor(sequential_ids);
+    const auto seq_buffer = roundtrip_compressor(sequential_ids);
     roundtrip_serializer(sequential_ids);
 
-    const std::vector<std::uint64_t> jump_ids = {
-        100, 101, 105, 106, 200, 201, 199, 205, 450, 451, 700
-    };
-    roundtrip_compressor(jump_ids);
+    std::vector<std::uint64_t> gap_ids;
+    gap_ids.reserve(2000);
+    std::uint64_t current = 1'000'000ULL;
+    for (std::uint64_t i = 0; i < 2000; ++i) {
+        if (i > 0 && (i % 50 == 0)) {
+            current += 1000;
+        } else {
+            current += 1;
+        }
+        gap_ids.push_back(current);
+    }
+    const auto gap_buffer = roundtrip_compressor(gap_ids);
+
+    // sanity-check: последовательные id должны сжиматься не хуже, чем с разрывами.
+    assert(seq_buffer.size() < gap_buffer.size());
 
     const std::vector<std::uint64_t> negative_delta_ids = {
-        100, 101, 99, 100, 98, 98, 150, 149, 151
+        100, 101, 102, 90, 91, 92, 93, 94, 95, 96
     };
     roundtrip_compressor(negative_delta_ids);
 #else
