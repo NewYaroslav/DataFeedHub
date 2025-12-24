@@ -218,6 +218,22 @@ include/
 - `DFH_USE_SIMDJSON` резервирует хуки под simdjson-парсеры; комбинируйте с `DFH_USE_JSON`. Допускается одновременное подключение двух JSON-бэкендов.
 - Домены, экспортирующие DTO, должны оборачивать свои JSON-хелперы этими макросами, чтобы потребители могли явно включать поддержку JSON.
 
+### 6.4 Правила include (include paths policy)
+- Запрещены обратные относительные пути в `#include`: любые `../` или `..` в пути.
+- Внутри `include/DataFeedHub/**` разрешены только прямые include-пути:
+  - `#include "DataFeedHub/<domain>/<...>.hpp"` от корня `include/`.
+  - Или umbrella-заголовки домена (`DataFeedHub/data.hpp`, `DataFeedHub/compression.hpp`, `DataFeedHub/compression/ticks.hpp` и т.п.).
+- Если файлу в одном домене нужна зависимость из другого домена:
+  - Предпочтительно подключать umbrella-заголовок целевого домена.
+  - Если umbrella нет - допускается прямой `#include "DataFeedHub/..."`
+  - Не добавляйте новые зависимости без необходимости.
+- Внутри `include/DataFeedHub/compression/ticks/**` внутренние заголовки подключать прямыми относительными путями БЕЗ `..` (например `"TickCompressorV1/TickEncoderV1.hpp"`) либо через `DataFeedHub/...`, но никогда не через `../../...`.
+- Примеры:
+  - Плохо: `#include "../../data/ticks/QuoteTick.hpp"`
+  - Хорошо: `#include "DataFeedHub/data/ticks/QuoteTick.hpp"`
+  - Хорошо: `#include "DataFeedHub/data.hpp"` (если там реэкспорт)
+  - Хорошо (внутри ticks): `#include "TickCompressorV1/TickEncoderV1.hpp"`
+
 ## 7. Требования к изменениям (тесты и документация)
 - Любое новое публичное API (`include/DataFeedHub/**`: структуры тиков/баров, функции, классы, шаблоны) обязательно сопровождается:
   - Тестами в `tests/**`: минимум один типичный сценарий и 1–2 граничных. Для компрессии — кейс «сжали → разжали → получили идентичные данные».
