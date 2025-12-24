@@ -388,6 +388,12 @@ namespace dfh::compression {
                 append_binary(output, tick);
             }
 
+            /// \brief Запись trade_id в поток сразу после массива MarketTick.
+            /// \details Пишется только если флаг ENABLE_TRADE_ID включен и
+            /// trade_ids не пуст. Размер не хранится отдельно: count == ticks.size().
+            /// Формат: delta(int64) от предыдущего trade_id (первый от 0),
+            /// zig-zag -> uint64 и vbyte. При пустом trade_ids значение в поток
+            /// не записывается, даже если флаг включен.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID) && !trade_ids.empty()) {
                 encode_trade_id_deltas(output, trade_ids);
             }
@@ -446,6 +452,10 @@ namespace dfh::compression {
             std::memcpy(ticks.data(), input.data() + offset, num_ticks * sizeof(MarketTick));
             offset += expected_size;
 
+            /// \brief Чтение trade_id из потока сразу после массива MarketTick.
+            /// \details Выполняется при ENABLE_TRADE_ID из заголовка; читает
+            /// ровно num_ticks значений vbyte и двигает offset. Если trade_ids
+            /// == nullptr, значения пропускаются.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID)) {
                 decode_trade_id_deltas(input.data(), offset, num_ticks, trade_ids);
             }

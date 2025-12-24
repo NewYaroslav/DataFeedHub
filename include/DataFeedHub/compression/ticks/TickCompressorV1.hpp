@@ -421,6 +421,14 @@ namespace dfh::compression {
                 ticks.size(),
                 base_unix_time);
 
+            /// \brief Запись trade_id в поток после времени и до флагов тика.
+            /// \details Пишется только если в конфигурации выставлен
+            /// TickStorageFlags::ENABLE_TRADE_ID и передан trade_ids.
+            /// Формат: count == ticks.size(); последовательность дельт (int64)
+            /// от предыдущего trade_id (первый от 0), zig-zag -> uint64 и vbyte.
+            /// Флаг выставляется из TickCodecConfig (для Quote/Trade собирается из
+            /// факта наличия trade_ids в данных). При несовпадении флага и указателя
+            /// trade_ids запись пропускается.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID) && trade_ids) {
                 encode_trade_id_deltas(buffer, *trade_ids);
             }
@@ -536,6 +544,10 @@ namespace dfh::compression {
                 num_ticks,
                 base_unix_time);
 
+            /// \brief Чтение trade_id из потока после времени и до флагов тика.
+            /// \details Выполняется только при флаге ENABLE_TRADE_ID в заголовке.
+            /// Всегда читает count == num_ticks значений vbyte и двигает offset;
+            /// если trade_ids == nullptr, значения игнорируются.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID)) {
                 decode_trade_id_deltas(buffer.data(), offset, num_ticks, trade_ids);
             }

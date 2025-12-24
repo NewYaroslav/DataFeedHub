@@ -13,7 +13,11 @@
 
 namespace dfh::compression {
 
-    /// \brief Encodes trade identifiers using zig-zag delta encoding.
+    /// \brief Кодирует trade_id как последовательность дельт с zig-zag и vbyte.
+    /// \details Формат: для каждого trade_id вычисляется signed delta от предыдущего
+    /// (первый от 0), затем применяется zig-zag для int64 и vbyte для uint64.
+    /// Предположения: порядок trade_id сохраняется; поддерживаются нули и повторы
+    /// (дельта может быть 0 или отрицательной).
     inline void encode_trade_id_deltas(std::vector<uint8_t>& buffer, const std::vector<uint64_t>& trade_ids) {
         if (trade_ids.empty()) return;
 
@@ -31,7 +35,9 @@ namespace dfh::compression {
         dfh::utils::append_vbyte<uint64_t>(buffer, zigzag.data(), zigzag.size());
     }
 
-    /// \brief Decodes zig-zag delta-encoded trade identifiers.
+    /// \brief Декодирует trade_id из vbyte и восстанавливает дельты zig-zag.
+    /// \details Считывает ровно count значений vbyte и смещает offset независимо
+    /// от output. Если output == nullptr, значения просто пропускаются.
     inline void decode_trade_id_deltas(const uint8_t* data, size_t& offset, size_t count, std::vector<uint64_t>* output) {
         if (count == 0) return;
 
