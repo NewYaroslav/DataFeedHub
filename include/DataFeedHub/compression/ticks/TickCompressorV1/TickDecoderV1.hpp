@@ -5,6 +5,11 @@
 /// \file TickDecoderV1.hpp
 /// \brief Defines the decoder for tick data compression in the TickCompressorV1 system.
 
+#include "DataFeedHub/compression/utils/repeat_encoding.hpp"
+#include "DataFeedHub/utils/simdcomp.hpp"
+#include "DataFeedHub/utils/vbyte.hpp"
+#include <stdexcept>
+
 namespace dfh::compression {
 
     /// \class TickDecoderV1
@@ -195,6 +200,47 @@ namespace dfh::compression {
             code_to_value_u32.resize(values_length);
             decode_frequency(rle_u32.data(), rle_u32.data(), num_ticks, code_to_value_u32.data(), values_u32.data(), index_map_u32.data(), values_length);
             decode_time_delta(rle_u32.data(), ticks, num_ticks, base_time);
+        }
+
+        /// \brief Декодирует trade_id, восстановив delta-adjusted, zig-zag и zero-repeats.
+        /// \param binary Двоичный буфер со сжатыми данными.
+        /// \param offset Текущий оффсет в буфере; обновляется при чтении.
+        /// \param num_ticks Ожидаемое число идентификаторов на выходе.
+        /// \param output Вектор для результата (может быть nullptr).
+        /// \throws std::runtime_error Если количество восстановленных значений не совпадает с num_ticks.
+        void decode_trade_id(
+                const uint8_t* binary,
+                size_t& offset,
+                size_t num_ticks,
+                std::vector<uint64_t>* output) {
+            const size_t encoded_size = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
+            auto &deltas_u32 = m_context.deltas_u32;
+            auto &rle_u32 = m_context.rle_u32;
+
+            deltas_u32.resize(encoded_size);
+            dfh::utils::extract_simdcomp(binary, offset, deltas_u32.data(), encoded_size);
+
+            if (!output) {
+                return;
+            }
+
+            rle_u32.resize(num_ticks);
+            size_t decoded_size = 0;
+            decode_zero_with_repeats(deltas_u32.data(), encoded_size, rle_u32.data(), decoded_size);
+            if (decoded_size != num_ticks) {
+                throw std::runtime_error("decode_trade_id: decoded size does not match tick count");
+            }
+
+            output->resize(num_ticks);
+            int64_t prev = 0;
+            for (size_t i = 0; i < num_ticks; ++i) {
+                const uint32_t zigzag = rle_u32[i];
+                const int32_t delta_adj = static_cast<int32_t>((zigzag >> 1) ^ -(zigzag & 1));
+                const int64_t delta = static_cast<int64_t>(delta_adj) + 1;
+                const int64_t current = prev + delta;
+                (*output)[i] = static_cast<uint64_t>(current);
+                prev = current;
+            }
         }
 
         /// \brief Decodes the compressed side flags indicating trade direction.

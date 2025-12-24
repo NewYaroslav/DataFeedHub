@@ -390,10 +390,11 @@ namespace dfh::compression {
 
             /// \brief Запись trade_id в поток сразу после массива MarketTick.
             /// \details Пишется только если флаг ENABLE_TRADE_ID включен и
-            /// trade_ids не пуст. Размер не хранится отдельно: count == ticks.size().
-            /// Формат: delta(int64) от предыдущего trade_id (первый от 0),
-            /// zig-zag -> uint64 и vbyte. При пустом trade_ids значение в поток
-            /// не записывается, даже если флаг включен.
+            /// trade_ids не пуст. Формат: [encoded_count:uint32][simdcomp(uint32)].
+            /// encoded_count = количество элементов после encode_zero_with_repeats.
+            /// Алгоритм: delta = curr - prev, delta_adj = delta - 1, zig-zag(int32),
+            /// затем encode_zero_with_repeats и simdcomp. При пустом trade_ids
+            /// значение в поток не записывается, даже если флаг включен.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID) && !trade_ids.empty()) {
                 encode_trade_id_deltas(output, trade_ids);
             }
@@ -454,8 +455,9 @@ namespace dfh::compression {
 
             /// \brief Чтение trade_id из потока сразу после массива MarketTick.
             /// \details Выполняется при ENABLE_TRADE_ID из заголовка; читает
-            /// ровно num_ticks значений vbyte и двигает offset. Если trade_ids
-            /// == nullptr, значения пропускаются.
+            /// encoded_count и simdcomp-массив, затем восстанавливает нулевые
+            /// повторы, zig-zag и delta+1. Если trade_ids == nullptr, значения
+            /// пропускаются.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID)) {
                 decode_trade_id_deltas(input.data(), offset, num_ticks, trade_ids);
             }

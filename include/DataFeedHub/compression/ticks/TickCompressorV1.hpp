@@ -10,7 +10,6 @@
 #include "DataFeedHub/data/ticks/QuoteTickL1.hpp"
 #include "DataFeedHub/data/ticks/TradeTick.hpp"
 #include "DataFeedHub/data/ticks/QuoteTickConversions.hpp"
-#include "TradeIdCodec.hpp"
 #include "TickCompressorV1/TickCompressionContextV1.hpp"
 #include "TickCompressorV1/TickEncoderV1.hpp"
 #include "TickCompressorV1/TickDecoderV1.hpp"
@@ -424,13 +423,15 @@ namespace dfh::compression {
             /// \brief Запись trade_id в поток после времени и до флагов тика.
             /// \details Пишется только если в конфигурации выставлен
             /// TickStorageFlags::ENABLE_TRADE_ID и передан trade_ids.
-            /// Формат: count == ticks.size(); последовательность дельт (int64)
-            /// от предыдущего trade_id (первый от 0), zig-zag -> uint64 и vbyte.
+            /// Формат: [encoded_count:uint32][simdcomp(uint32)].
+            /// encoded_count = количество элементов после encode_zero_with_repeats.
+            /// Алгоритм: delta = curr - prev, delta_adj = delta - 1, zig-zag(int32),
+            /// затем encode_zero_with_repeats и simdcomp.
             /// Флаг выставляется из TickCodecConfig (для Quote/Trade собирается из
             /// факта наличия trade_ids в данных). При несовпадении флага и указателя
             /// trade_ids запись пропускается.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID) && trade_ids) {
-                encode_trade_id_deltas(buffer, *trade_ids);
+                m_encoder.encode_trade_id(buffer, *trade_ids);
             }
 
             if (m_config.has_flag(TickStorageFlags::ENABLE_TICK_FLAGS)) {
@@ -546,10 +547,11 @@ namespace dfh::compression {
 
             /// \brief Чтение trade_id из потока после времени и до флагов тика.
             /// \details Выполняется только при флаге ENABLE_TRADE_ID в заголовке.
-            /// Всегда читает count == num_ticks значений vbyte и двигает offset;
-            /// если trade_ids == nullptr, значения игнорируются.
+            /// Читает encoded_count и simdcomp-массив, затем восстанавливает
+            /// нулевые повторы, zig-zag и delta+1. Если trade_ids == nullptr,
+            /// offset двигается, значения не записываются.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID)) {
-                decode_trade_id_deltas(buffer.data(), offset, num_ticks, trade_ids);
+                m_decoder.decode_trade_id(buffer.data(), offset, num_ticks, trade_ids);
             }
 
             if (m_config.has_flag(TickStorageFlags::ENABLE_TICK_FLAGS)) {

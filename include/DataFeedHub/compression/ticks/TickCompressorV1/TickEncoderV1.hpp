@@ -5,6 +5,12 @@
 /// \file TickEncoderV1.hpp
 /// \brief Defines the encoder for tick data compression in the TickCompressorV1 system.
 
+#include "DataFeedHub/compression/utils/repeat_encoding.hpp"
+#include "DataFeedHub/utils/simdcomp.hpp"
+#include "DataFeedHub/utils/vbyte.hpp"
+#include <limits>
+#include <stdexcept>
+
 namespace dfh::compression {
 
     /// \class TickEncoderV1
@@ -174,6 +180,43 @@ namespace dfh::compression {
 
             dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.size());
             dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.data(), deltas_u32.size());
+        }
+
+        /// \brief Кодирует trade_id через delta-adjusted, zig-zag и zero-repeats.
+        /// \param output Буфер для записи закодированных данных.
+        /// \param trade_ids Массив идентификаторов сделок.
+        /// \throws std::overflow_error Если delta_adj выходит за пределы int32_t.
+        void encode_trade_id(
+                std::vector<uint8_t>& output,
+                const std::vector<uint64_t>& trade_ids) {
+            if (trade_ids.empty()) return;
+
+            auto &deltas_u32 = m_context.deltas_u32;
+            const size_t count = trade_ids.size();
+            deltas_u32.resize(count);
+
+            constexpr int64_t min_val = static_cast<int64_t>(std::numeric_limits<int32_t>::min());
+            constexpr int64_t max_val = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+
+            int64_t prev = 0;
+            for (size_t i = 0; i < count; ++i) {
+                const int64_t current = static_cast<int64_t>(trade_ids[i]);
+                const int64_t delta = current - prev;
+                const int64_t delta_adj = delta - 1;
+                if (delta_adj < min_val || delta_adj > max_val) {
+                    throw std::overflow_error("encode_trade_id: delta_adj out of int32 range");
+                }
+                const int32_t delta_adj32 = static_cast<int32_t>(delta_adj);
+                deltas_u32[i] = static_cast<uint32_t>((delta_adj32 << 1) ^ (delta_adj32 >> 31));
+                prev = current;
+            }
+
+            size_t repeats_size = 0;
+            encode_zero_with_repeats(deltas_u32.data(), deltas_u32.size(), deltas_u32.data(), repeats_size);
+            deltas_u32.resize(repeats_size);
+
+            dfh::utils::append_vbyte<uint32_t>(output, static_cast<uint32_t>(repeats_size));
+            dfh::utils::append_simdcomp(output, deltas_u32.data(), deltas_u32.size());
         }
 
         /// \brief Encodes the side flags indicating the direction of the trade.
