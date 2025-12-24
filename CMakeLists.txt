@@ -138,6 +138,11 @@ if(DFH_BUILD_TESTS)
     target_compile_features(test_tick_codec_trade_roundtrip PRIVATE cxx_std_17)
     add_test(NAME test_tick_codec_trade_roundtrip COMMAND test_tick_codec_trade_roundtrip)
 
+    add_executable(test_trade_id_codec tests/test_trade_id_codec.cpp)
+    target_link_libraries(test_trade_id_codec PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
+    target_compile_features(test_trade_id_codec PRIVATE cxx_std_17)
+    add_test(NAME test_trade_id_codec COMMAND test_trade_id_codec)
+
     add_executable(test_tick_codec_compat_trade_to_market tests/test_tick_codec_compat_trade_to_market.cpp)
     target_link_libraries(test_tick_codec_compat_trade_to_market PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
     target_compile_features(test_tick_codec_compat_trade_to_market PRIVATE cxx_std_17)
