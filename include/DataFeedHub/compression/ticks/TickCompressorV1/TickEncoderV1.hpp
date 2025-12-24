@@ -182,7 +182,7 @@ namespace dfh::compression {
             dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.data(), deltas_u32.size());
         }
 
-        /// \brief Кодирует trade_id через delta-adjusted, zig-zag и zero-repeats.
+        /// \brief Кодирует trade_id: delta-1 -> zig-zag -> RLE нулей -> simdcomp.
         /// \param output Буфер для записи закодированных данных.
         /// \param trade_ids Массив идентификаторов сделок.
         /// \throws std::overflow_error Если delta_adj выходит за пределы int32_t.

@@ -202,7 +202,7 @@ namespace dfh::compression {
             decode_time_delta(rle_u32.data(), ticks, num_ticks, base_time);
         }
 
-        /// \brief Декодирует trade_id, восстановив delta-adjusted, zig-zag и zero-repeats.
+        /// \brief Декодирует trade_id: simdcomp -> RLE нулей -> zig-zag -> +1 -> накопление.
         /// \param binary Двоичный буфер со сжатыми данными.
         /// \param offset Текущий оффсет в буфере; обновляется при чтении.
         /// \param num_ticks Ожидаемое число идентификаторов на выходе.
