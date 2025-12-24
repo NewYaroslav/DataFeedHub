@@ -47,34 +47,6 @@ namespace dfh {
     static_assert(sizeof(QuoteTickL1) == 4 * sizeof(double) + 2 * sizeof(std::uint64_t),
                   "QuoteTickL1 layout changed unexpectedly.");
 
-#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
-
-    /// \brief Serializes QuoteTickL1 to JSON.
-    inline void to_json(nlohmann::json& j, const QuoteTickL1& tick) {
-        j = nlohmann::json{
-            {"ask", tick.ask},
-            {"bid", tick.bid},
-            {"ask_volume", tick.ask_volume},
-            {"bid_volume", tick.bid_volume},
-            {"time_ms", tick.time_ms}
-        };
-        if (tick.received_ms != 0) {
-            j["received_ms"] = tick.received_ms;
-        }
-    }
-
-    /// \brief Deserializes QuoteTickL1 from JSON.
-    inline void from_json(const nlohmann::json& j, QuoteTickL1& tick) {
-        j.at("ask").get_to(tick.ask);
-        j.at("bid").get_to(tick.bid);
-        j.at("ask_volume").get_to(tick.ask_volume);
-        j.at("bid_volume").get_to(tick.bid_volume);
-        j.at("time_ms").get_to(tick.time_ms);
-        tick.received_ms = j.value("received_ms", std::uint64_t{0});
-    }
-
-#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
-
 } // namespace dfh
 
 #include "DataFeedHub/data/ticks/TickConversions.hpp"

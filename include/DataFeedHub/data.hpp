@@ -53,6 +53,9 @@
 
 #include "data/common.hpp"
 #include "data/ticks.hpp"
+#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
+#include "data/ticks/TickJson.hpp"
+#endif
 #include "data/bars.hpp"
 #include "data/funding.hpp"
 #include "data/trading.hpp"

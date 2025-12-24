@@ -13,10 +13,6 @@
 
 #include "DataFeedHub/data/ticks/flags.hpp"
 
-#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
-#include <nlohmann/json.hpp>
-#endif
-
 namespace dfh {
 
     /// \struct TickCodecConfig
@@ -101,45 +97,6 @@ namespace dfh {
 
     static_assert(std::is_trivially_copyable_v<TickCodecConfig>,
                   "TickCodecConfig must stay trivially copyable.");
-
-#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
-
-    /// \brief Serializes TickCodecConfig to JSON.
-    inline void to_json(nlohmann::json& j, const TickCodecConfig& cfg) {
-        j = nlohmann::json{
-            {"tick_size", cfg.tick_size},
-            {"expiration_time_ms", cfg.expiration_time_ms},
-            {"next_expiration_time_ms", cfg.next_expiration_time_ms},
-            {"flags", static_cast<std::uint64_t>(cfg.flags)},
-            {"price_digits", cfg.price_digits},
-            {"volume_digits", cfg.volume_digits}
-        };
-
-        nlohmann::json reserved = nlohmann::json::array();
-        for (auto byte : cfg.reserved) {
-            reserved.push_back(byte);
-        }
-        j["reserved"] = std::move(reserved);
-    }
-
-    /// \brief Deserializes TickCodecConfig from JSON.
-    inline void from_json(const nlohmann::json& j, TickCodecConfig& cfg) {
-        j.at("tick_size").get_to(cfg.tick_size);
-        j.at("expiration_time_ms").get_to(cfg.expiration_time_ms);
-        j.at("next_expiration_time_ms").get_to(cfg.next_expiration_time_ms);
-        std::uint64_t raw_flags = 0;
-        j.at("flags").get_to(raw_flags);
-        cfg.flags = static_cast<TickStorageFlags>(raw_flags);
-        j.at("price_digits").get_to(cfg.price_digits);
-        j.at("volume_digits").get_to(cfg.volume_digits);
-
-        auto reserved = j.value("reserved", std::vector<std::uint8_t>(cfg.reserved.size(), 0));
-        for (std::size_t i = 0; i < cfg.reserved.size(); ++i) {
-            cfg.reserved[i] = i < reserved.size() ? reserved[i] : 0;
-        }
-    }
-
-#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 } // namespace dfh
 

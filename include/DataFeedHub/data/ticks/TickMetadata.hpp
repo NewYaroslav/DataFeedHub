@@ -5,6 +5,12 @@
 /// \file TickMetadata.hpp
 /// \brief Defines the metadata structure for tick data.
 
+#include <cstdint>
+#include <type_traits>
+
+#include "DataFeedHub/data/common/enums.hpp"
+#include "DataFeedHub/data/ticks/flags.hpp"
+
 namespace dfh {
 
     /// \struct TickMetadata
@@ -90,48 +96,6 @@ namespace dfh {
 
     static_assert(std::is_trivially_copyable_v<TickMetadata>,
                   "TickMetadata must remain trivially copyable for storage serialization.");
-
-#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
-
-    /// \brief Serializes TickMetadata to JSON.
-    inline void to_json(nlohmann::json& j, const TickMetadata& metadata) {
-        j = nlohmann::json{
-            {"start_time_ms", metadata.start_time_ms},
-            {"end_time_ms", metadata.end_time_ms},
-            {"expiration_time_ms", metadata.expiration_time_ms},
-            {"next_expiration_time_ms", metadata.next_expiration_time_ms},
-            {"count", metadata.count},
-            {"tick_size", metadata.tick_size},
-            {"symbol_id", metadata.symbol_id},
-            {"exchange_id", metadata.exchange_id},
-            {"market_type", static_cast<std::uint32_t>(metadata.market_type)},
-            {"price_digits", metadata.price_digits},
-            {"volume_digits", metadata.volume_digits},
-            {"flags", static_cast<std::uint64_t>(metadata.flags)}
-        };
-    }
-
-    /// \brief Deserializes TickMetadata from JSON.
-    inline void from_json(const nlohmann::json& j, TickMetadata& metadata) {
-        j.at("start_time_ms").get_to(metadata.start_time_ms);
-        j.at("end_time_ms").get_to(metadata.end_time_ms);
-        j.at("expiration_time_ms").get_to(metadata.expiration_time_ms);
-        j.at("next_expiration_time_ms").get_to(metadata.next_expiration_time_ms);
-        j.at("count").get_to(metadata.count);
-        j.at("tick_size").get_to(metadata.tick_size);
-        j.at("symbol_id").get_to(metadata.symbol_id);
-        j.at("exchange_id").get_to(metadata.exchange_id);
-        std::uint32_t raw_market_type = 0;
-        j.at("market_type").get_to(raw_market_type);
-        metadata.market_type = static_cast<MarketType>(raw_market_type);
-        j.at("price_digits").get_to(metadata.price_digits);
-        j.at("volume_digits").get_to(metadata.volume_digits);
-        std::uint64_t raw_flags = 0;
-        j.at("flags").get_to(raw_flags);
-        metadata.flags = static_cast<TickStorageFlags>(raw_flags);
-    }
-
-#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 } // namespace dfh
 

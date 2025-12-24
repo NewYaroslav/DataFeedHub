@@ -5,6 +5,11 @@
 /// \file BidAskRestoreConfig.hpp
 /// \brief Bid/ask price restoration configuration for historical market data.
 
+#include <cstdint>
+#include <type_traits>
+
+#include "DataFeedHub/data/ticks/enums.hpp"
+
 namespace dfh {
 
     /// \struct BidAskRestoreConfig
@@ -17,28 +22,6 @@ namespace dfh {
 
     static_assert(std::is_trivially_copyable_v<BidAskRestoreConfig>,
                   "BidAskRestoreConfig must remain a POD for shared-memory use.");
-
-#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
-
-    /// \brief Serializes BidAskRestoreConfig to JSON.
-    inline void to_json(nlohmann::json& j, const BidAskRestoreConfig& cfg) {
-        j = nlohmann::json{
-            {"mode", static_cast<std::uint32_t>(cfg.mode)},
-            {"fixed_spread", cfg.fixed_spread},
-            {"price_digits", cfg.price_digits}
-        };
-    }
-
-    /// \brief Deserializes BidAskRestoreConfig from JSON.
-    inline void from_json(const nlohmann::json& j, BidAskRestoreConfig& cfg) {
-        std::uint32_t raw_mode = 0;
-        j.at("mode").get_to(raw_mode);
-        cfg.mode = static_cast<BidAskModel>(raw_mode);
-        j.at("fixed_spread").get_to(cfg.fixed_spread);
-        j.at("price_digits").get_to(cfg.price_digits);
-    }
-
-#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 } // namespace dfh
 

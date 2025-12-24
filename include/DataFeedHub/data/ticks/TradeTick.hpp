@@ -11,10 +11,6 @@
 
 #include "DataFeedHub/data/ticks/enums.hpp"
 
-#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
-#include <nlohmann/json.hpp>
-#endif
-
 namespace dfh {
 
     /// \struct TradeTick
@@ -111,40 +107,6 @@ namespace dfh {
     static_assert(std::is_trivially_copyable_v<TradeTick>,
                   "TradeTick must remain trivially copyable for zero-copy transports.");
     static_assert(sizeof(TradeTick) == 32, "TradeTick size must be 32 bytes (layout changed?)");
-
-#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
-
-    /// \brief Сериализует TradeTick в JSON.
-    /// \param j Объект JSON, который будет заполнен.
-    /// \param tick Сделка для сериализации.
-    inline void to_json(nlohmann::json& j, const TradeTick& tick) {
-        j = nlohmann::json{
-            {"price", tick.price},
-            {"volume", tick.volume},
-            {"time_ms", tick.time_ms},
-            {"trade_id", tick.trade_id()},
-            {"side", static_cast<std::uint8_t>(tick.trade_side())}
-        };
-    }
-
-    /// \brief Десериализует TradeTick из JSON.
-    /// \param j JSON-источник с описанием сделки.
-    /// \param tick Структура, которая заполняется.
-    inline void from_json(const nlohmann::json& j, TradeTick& tick) {
-        j.at("price").get_to(tick.price);
-        j.at("volume").get_to(tick.volume);
-        j.at("time_ms").get_to(tick.time_ms);
-
-        if (j.contains("id_and_side")) {
-            j.at("id_and_side").get_to(tick.id_and_side);
-        } else {
-            const auto trade_id = j.value("trade_id", std::uint64_t{0});
-            const auto side_raw = j.value("side", std::uint32_t{0});
-            tick.id_and_side = TradeTick::pack_id_and_side(trade_id, static_cast<TradeSide>(side_raw));
-        }
-    }
-
-#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 } // namespace dfh
 

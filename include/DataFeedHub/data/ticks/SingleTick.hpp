@@ -5,6 +5,14 @@
 /// \file SingleTick.hpp
 /// \brief Defines a generic structure for a single tick with metadata.
 
+#include <cstdint>
+#include <utility>
+
+#include "DataFeedHub/data/ticks/flags.hpp"
+#include "DataFeedHub/data/ticks/MarketTick.hpp"
+#include "DataFeedHub/data/ticks/QuoteTick.hpp"
+#include "DataFeedHub/data/ticks/ValueTick.hpp"
+
 namespace dfh {
 
     /// \brief Generic structure for a single tick enriched with metadata.
@@ -45,36 +53,6 @@ namespace dfh {
     using SingleValueTick = SingleTick<ValueTick>;
     using SingleQuoteTick = SingleTick<QuoteTick>;
     using SingleMarketTick = SingleTick<MarketTick>;
-
-#if defined(DFH_USE_JSON) && defined(DFH_USE_NLOHMANN_JSON)
-
-    /// \brief Serializes a SingleTick wrapper to JSON.
-    template <typename TickType>
-    inline void to_json(nlohmann::json& j, const SingleTick<TickType>& value) {
-        j = nlohmann::json{
-            {"tick", value.tick},
-            {"flags", static_cast<std::uint64_t>(value.flags)},
-            {"symbol_index", value.symbol_index},
-            {"provider_index", value.provider_index},
-            {"price_digits", value.price_digits},
-            {"volume_digits", value.volume_digits}
-        };
-    }
-
-    /// \brief Deserializes a SingleTick wrapper from JSON.
-    template <typename TickType>
-    inline void from_json(const nlohmann::json& j, SingleTick<TickType>& value) {
-        j.at("tick").get_to(value.tick);
-        std::uint64_t raw_flags = 0;
-        j.at("flags").get_to(raw_flags);
-        value.flags = static_cast<TickUpdateFlags>(raw_flags);
-        j.at("symbol_index").get_to(value.symbol_index);
-        j.at("provider_index").get_to(value.provider_index);
-        j.at("price_digits").get_to(value.price_digits);
-        j.at("volume_digits").get_to(value.volume_digits);
-    }
-
-#endif // DFH_USE_JSON && DFH_USE_NLOHMANN_JSON
 
 } // namespace dfh
 
