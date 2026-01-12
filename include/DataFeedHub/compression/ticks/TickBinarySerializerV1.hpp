@@ -8,6 +8,8 @@
 #include <cstddef>
 #include <cstring>
 
+#include "TradeIdCodec.hpp"
+
 namespace dfh::compression {
 
     /// \class TickBinarySerializerV1

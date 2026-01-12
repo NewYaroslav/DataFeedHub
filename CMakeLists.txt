@@ -108,91 +108,67 @@ target_compile_features(DataFeedHub INTERFACE cxx_std_17)
 if(DFH_BUILD_TESTS)
     enable_testing()
 
-    add_executable(test_dependencies tests/test_dependencies.cpp)
-    target_link_libraries(test_dependencies PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_dependencies PRIVATE cxx_std_17)
-    add_test(NAME test_dependencies COMMAND test_dependencies)
+    function(dfh_add_test exe)
+        set(options)
+        set(oneValueArgs SRC)
+        set(multiValueArgs LIBS SOURCES)
+        cmake_parse_arguments(DFH "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    add_executable(test_tick_codec_quote_roundtrip tests/test_tick_codec_quote_roundtrip.cpp)
-    target_link_libraries(test_tick_codec_quote_roundtrip PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_tick_codec_quote_roundtrip PRIVATE cxx_std_17)
-    add_test(NAME test_tick_codec_quote_roundtrip COMMAND test_tick_codec_quote_roundtrip)
+        if(DFH_SOURCES)
+            add_executable(${exe} ${DFH_SOURCES})
+        else()
+            add_executable(${exe} ${DFH_SRC})
+        endif()
 
-    add_executable(test_tick_codec_market_roundtrip tests/test_tick_codec_market_roundtrip.cpp)
-    target_link_libraries(test_tick_codec_market_roundtrip PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_tick_codec_market_roundtrip PRIVATE cxx_std_17)
-    add_test(NAME test_tick_codec_market_roundtrip COMMAND test_tick_codec_market_roundtrip)
+        target_link_libraries(${exe} PRIVATE DataFeedHub ${DFH_LIBS})
+        target_compile_features(${exe} PRIVATE cxx_std_17)
+        add_test(NAME ${exe} COMMAND ${exe})
+    endfunction()
 
-    add_executable(test_tick_codec_quotevol_roundtrip tests/test_tick_codec_quotevol_roundtrip.cpp)
-    target_link_libraries(test_tick_codec_quotevol_roundtrip PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_tick_codec_quotevol_roundtrip PRIVATE cxx_std_17)
-    add_test(NAME test_tick_codec_quotevol_roundtrip COMMAND test_tick_codec_quotevol_roundtrip)
-
-    add_executable(test_tick_codec_quotel1_roundtrip tests/test_tick_codec_quotel1_roundtrip.cpp)
-    target_link_libraries(test_tick_codec_quotel1_roundtrip PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_tick_codec_quotel1_roundtrip PRIVATE cxx_std_17)
-    add_test(NAME test_tick_codec_quotel1_roundtrip COMMAND test_tick_codec_quotel1_roundtrip)
-
-    add_executable(test_tick_codec_trade_roundtrip tests/test_tick_codec_trade_roundtrip.cpp)
-    target_link_libraries(test_tick_codec_trade_roundtrip PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_tick_codec_trade_roundtrip PRIVATE cxx_std_17)
-    add_test(NAME test_tick_codec_trade_roundtrip COMMAND test_tick_codec_trade_roundtrip)
-
-    add_executable(test_trade_id_codec tests/test_trade_id_codec.cpp)
-    target_link_libraries(test_trade_id_codec PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_trade_id_codec PRIVATE cxx_std_17)
-    add_test(NAME test_trade_id_codec COMMAND test_trade_id_codec)
-
-    add_executable(test_tick_codec_compat_trade_to_market tests/test_tick_codec_compat_trade_to_market.cpp)
-    target_link_libraries(test_tick_codec_compat_trade_to_market PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_tick_codec_compat_trade_to_market PRIVATE cxx_std_17)
-    add_test(NAME test_tick_codec_compat_trade_to_market COMMAND test_tick_codec_compat_trade_to_market)
-
-    add_executable(test_tick_codec_compat_market_tradebased_to_trade tests/test_tick_codec_compat_market_tradebased_to_trade.cpp)
-    target_link_libraries(test_tick_codec_compat_market_tradebased_to_trade PRIVATE DataFeedHub ${DFH_ALL_DEP_TARGETS})
-    target_compile_features(test_tick_codec_compat_market_tradebased_to_trade PRIVATE cxx_std_17)
-    add_test(NAME test_tick_codec_compat_market_tradebased_to_trade COMMAND test_tick_codec_compat_market_tradebased_to_trade)
-
-    add_executable(test_header_compile_data_ticks
-        tests/header_compile/main.cpp
-        tests/header_compile/include_data_umbrella.cpp
-        tests/header_compile/include_quote_tick.cpp
-        tests/header_compile/include_quote_tick_vol.cpp
-        tests/header_compile/include_quote_tick_l1.cpp
-        tests/header_compile/include_trade_tick.cpp
-        tests/header_compile/include_market_tick.cpp
-        tests/header_compile/include_tick_codec_config.cpp
-        tests/header_compile/include_tick_conversions.cpp
-        tests/header_compile/include_tick_json.cpp
+    set(DFH_ROUNDTRIP_TESTS
+        test_dependencies                         tests/test_dependencies.cpp
+        test_tick_codec_quote_roundtrip           tests/test_tick_codec_quote_roundtrip.cpp
+        test_tick_codec_market_roundtrip          tests/test_tick_codec_market_roundtrip.cpp
+        test_tick_codec_quotevol_roundtrip        tests/test_tick_codec_quotevol_roundtrip.cpp
+        test_tick_codec_quotel1_roundtrip         tests/test_tick_codec_quotel1_roundtrip.cpp
+        test_tick_codec_trade_roundtrip           tests/test_tick_codec_trade_roundtrip.cpp
+        test_trade_id_codec                       tests/test_trade_id_codec.cpp
+        test_tick_codec_compat_trade_to_market    tests/test_tick_codec_compat_trade_to_market.cpp
+        test_tick_codec_compat_market_tradebased_to_trade tests/test_tick_codec_compat_market_tradebased_to_trade.cpp
     )
-    target_link_libraries(test_header_compile_data_ticks PRIVATE DataFeedHub ${JSON_TARGET})
-    target_compile_features(test_header_compile_data_ticks PRIVATE cxx_std_17)
-    add_test(NAME test_header_compile_data_ticks COMMAND test_header_compile_data_ticks)
 
-    add_executable(test_headers_compile_ticks tests/test_data_ticks_headers_compile.cpp)
-    target_link_libraries(test_headers_compile_ticks PRIVATE DataFeedHub ${JSON_TARGET})
-    target_compile_features(test_headers_compile_ticks PRIVATE cxx_std_17)
-    add_test(NAME test_headers_compile_ticks COMMAND test_headers_compile_ticks)
+    list(LENGTH DFH_ROUNDTRIP_TESTS _n)
+    math(EXPR _pairs "${_n} / 2 - 1")
+    foreach(i RANGE 0 ${_pairs})
+        math(EXPR n "${i}*2")
+        math(EXPR s "${i}*2+1")
+        list(GET DFH_ROUNDTRIP_TESTS ${n} name)
+        list(GET DFH_ROUNDTRIP_TESTS ${s} src)
+        dfh_add_test(${name} SRC ${src} LIBS ${DFH_ALL_DEP_TARGETS})
+    endforeach()
 
-    add_executable(test_headers_compile_umbrella tests/test_data_umbrella_headers_compile.cpp)
-    target_link_libraries(test_headers_compile_umbrella PRIVATE DataFeedHub ${JSON_TARGET})
-    target_compile_features(test_headers_compile_umbrella PRIVATE cxx_std_17)
-    add_test(NAME test_headers_compile_umbrella COMMAND test_headers_compile_umbrella)
+    dfh_add_test(test_tick_conversions_roundtrip SRC tests/test_tick_conversions_roundtrip.cpp)
+    dfh_add_test(test_tick_json_roundtrip SRC tests/test_tick_json_roundtrip.cpp LIBS ${JSON_TARGET})
 
-    add_executable(test_tick_conversions_roundtrip tests/test_tick_conversions_roundtrip.cpp)
-    target_link_libraries(test_tick_conversions_roundtrip PRIVATE DataFeedHub)
-    target_compile_features(test_tick_conversions_roundtrip PRIVATE cxx_std_17)
-    add_test(NAME test_tick_conversions_roundtrip COMMAND test_tick_conversions_roundtrip)
+    dfh_add_test(test_header_compile_data_ticks
+        SOURCES
+            tests/header_compile/main.cpp
+            tests/header_compile/include_data_umbrella.cpp
+            tests/header_compile/include_quote_tick.cpp
+            tests/header_compile/include_quote_tick_vol.cpp
+            tests/header_compile/include_quote_tick_l1.cpp
+            tests/header_compile/include_trade_tick.cpp
+            tests/header_compile/include_market_tick.cpp
+            tests/header_compile/include_tick_codec_config.cpp
+            tests/header_compile/include_tick_conversions.cpp
+            tests/header_compile/include_tick_json.cpp
+        LIBS ${JSON_TARGET}
+    )
 
-    add_executable(test_tick_json_roundtrip tests/test_tick_json_roundtrip.cpp)
-    target_link_libraries(test_tick_json_roundtrip PRIVATE DataFeedHub ${JSON_TARGET})
-    target_compile_features(test_tick_json_roundtrip PRIVATE cxx_std_17)
-    add_test(NAME test_tick_json_roundtrip COMMAND test_tick_json_roundtrip)
+    dfh_add_test(test_headers_compile_ticks SRC tests/test_data_ticks_headers_compile.cpp LIBS ${JSON_TARGET})
+    dfh_add_test(test_headers_compile_umbrella SRC tests/test_data_umbrella_headers_compile.cpp LIBS ${JSON_TARGET})
 
-    add_executable(test_header_smoke_ticks tests/test_header_smoke_ticks.cpp)
-    target_link_libraries(test_header_smoke_ticks PRIVATE DataFeedHub ${JSON_TARGET})
-    target_compile_features(test_header_smoke_ticks PRIVATE cxx_std_17)
-    add_test(NAME header_smoke_ticks COMMAND test_header_smoke_ticks)
+    dfh_add_test(test_header_smoke_ticks SRC tests/test_header_smoke_ticks.cpp LIBS ${JSON_TARGET})
 
     add_test(NAME lint_no_reverse_includes
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/lint/check_no_reverse_includes.cmake
