@@ -5,6 +5,8 @@
 /// \file enums.hpp
 /// \brief Enumerations shared across the tick domain.
 
+#include <cstdint>
+
 namespace dfh {
 
     /// \enum BidAskModel
@@ -22,9 +24,9 @@ namespace dfh {
     /// \enum TradeSide
     /// \brief Direction of an executed trade.
     enum class TradeSide : std::uint8_t {
-        Unknown = 0, ///< Trade direction is unknown or not reported.
-        Buy     = 1, ///< Aggressor lifted the ask (buy).
-        Sell    = 2  ///< Aggressor hit the bid (sell).
+        UNKNOWN = 0, ///< Trade direction is unknown or not reported.
+        BUY     = 1, ///< Aggressor lifted the ask (buy).
+        SELL    = 2  ///< Aggressor hit the bid (sell).
     };
 
     static_assert(sizeof(TradeSide) == sizeof(std::uint8_t),

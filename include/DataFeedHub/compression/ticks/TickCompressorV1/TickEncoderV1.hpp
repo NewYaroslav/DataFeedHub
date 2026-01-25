@@ -24,63 +24,60 @@ namespace dfh::compression {
             : m_context(context) {}
 
         /// \brief Encodes the last trade price as delta values.
-        /// \param output The buffer where encoded data will be written.
-        /// \param ticks The array of market ticks to encode.
-        /// \param num_ticks The number of ticks to encode.
-        /// \param price_scale The scaling factor for price precision.
-        /// \param initial_price The initial price for delta calculations.
-        void encode_price_last(
+        /// \param output Buffer where encoded data will be written.
+        /// \param ticks Array of market ticks to encode.
+        /// \param num_ticks Number of ticks to encode.
+        /// \param price_scale Scaling factor for price precision.
+        /// \param initial_price Initial price for delta calculations.
+		/// \param expected_uniques Expected number of unique values (used for reserve()).
+		template<class TickType, double TickType::* PriceMember>
+        void encode_price(
                 std::vector<uint8_t>& output,
-                const MarketTick* ticks,
+                const TickType* ticks,
                 size_t num_ticks,
                 double price_scale,
-                int64_t initial_price) {
+                int64_t initial_price,
+				std::size_t expected_uniques = 16384) {
             auto &deltas_u32 = m_context.deltas_u32;
             auto &deltas_u64 = m_context.deltas_u64;
-            auto &values_u32 = m_context.values_u32;
-            auto &values_u64 = m_context.values_u64;
-            auto &index_map_u32 = m_context.index_map_u32;
-            try {
-                deltas_u32.resize(num_ticks);
-                encode_last_delta_zig_zag_int32(ticks, deltas_u32.data(), num_ticks, price_scale, initial_price);
-                encode_frequency(deltas_u32.data(), deltas_u32.data(), num_ticks, values_u32, index_map_u32);
+            auto &dict_values_u32 = m_context.values_u32;
+            auto &dict_values_u64 = m_context.values_u64;
+
+			deltas_u32.resize(num_ticks);
+            if (encode_price_delta_zig_zag_u32<TickType, PriceMember>(ticks, deltas_u32.data(), num_ticks, price_scale, initial_price)) {
+                encode_frequency(deltas_u32.data(), deltas_u32.data(), num_ticks, dict_values_u32, expected_uniques);
 
                 size_t repeats_size = 0;
                 encode_zero_with_repeats(deltas_u32.data(), deltas_u32.size(), deltas_u32.data(), repeats_size);
                 deltas_u32.resize(repeats_size);
 
-                encode_delta_sorted<uint32_t, uint32_t>(values_u32.data(), values_u32.data(), values_u32.size(), 0);
-                encode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), index_map_u32.size(), 0);
+                encode_delta_zig_zag_u32(dict_values_u32.data(), dict_values_u32.data(), dict_values_u32.size(), 0);
 
-                uint32_t values_length = values_u32.size();
-                values_length = (values_length << 1);
+                uint32_t dict_length = dict_values_u32.size();
+                dict_length = (dict_length << 1);
 
-                dfh::utils::append_vbyte<uint32_t>(output, values_length);
-                dfh::utils::append_simdcomp(output, values_u32.data(), values_u32.size());
-                dfh::utils::append_simdcomp(output, index_map_u32.data(), values_u32.size());
+                dfh::utils::append_vbyte<uint32_t>(output, dict_length);
+                dfh::utils::append_simdcomp(output, dict_values_u32.data(), dict_values_u32.size());
 
                 dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.size());
                 dfh::utils::append_simdcomp(output, deltas_u32.data(), deltas_u32.size());
-            } catch(std::overflow_error& e) {
-                // Обработка ошибки encode_last_delta_zig_zag_int32 или encode_delta_sorted<uint32_t, uint32_t>
+            } else {
+                // Обработка ошибки encode_last_delta_zig_zag_u32
                 deltas_u64.resize(num_ticks);
-                deltas_u32.resize(num_ticks);
-                encode_last_delta_zig_zag_int64(ticks, deltas_u64.data(), num_ticks, price_scale, initial_price);
-                encode_frequency(deltas_u64.data(), deltas_u32.data(), num_ticks, values_u64, index_map_u32);
+                encode_price_delta_zig_zag_u64<TickType, PriceMember>(ticks, deltas_u64.data(), num_ticks, price_scale, initial_price);
+                encode_frequency(deltas_u64.data(), deltas_u32.data(), num_ticks, dict_values_u64, expected_uniques);
 
                 size_t repeats_size = 0;
                 encode_zero_with_repeats(deltas_u32.data(), deltas_u32.size(), deltas_u32.data(), repeats_size);
                 deltas_u32.resize(repeats_size);
 
-                encode_delta_sorted<uint64_t, uint64_t>(values_u64.data(), values_u64.data(), values_u64.size(), 0);
-                encode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), index_map_u32.size(), 0);
+                encode_delta_zig_zag_u64(dict_values_u64.data(), dict_values_u64.data(), dict_values_u64.size(), 0);
 
-                uint32_t values_length = values_u64.size();
-                values_length = (values_length << 1) | 0x1;
+                uint32_t dict_length = dict_values_u64.size();
+                dict_length = (dict_length << 1) | 0x1;
 
-                dfh::utils::append_vbyte<uint32_t>(output, values_length);
-                dfh::utils::append_vbyte<uint64_t>(output, values_u64.data(), values_u64.size());
-                dfh::utils::append_simdcomp(output, index_map_u32.data(), values_u64.size());
+                dfh::utils::append_vbyte<uint32_t>(output, dict_length);
+                dfh::utils::append_vbyte<uint64_t>(output, dict_values_u64.data(), dict_values_u64.size());
 
                 dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.size());
                 dfh::utils::append_simdcomp(output, deltas_u32.data(), deltas_u32.size());
@@ -88,62 +85,59 @@ namespace dfh::compression {
         }
 
         /// \brief Encodes the trade volume as delta values.
+		
         /// \param output Buffer where encoded data will be written.
         /// \param ticks Array of market ticks to encode.
         /// \param num_ticks Number of ticks to encode.
         /// \param volume_scale Scaling factor for volume precision.
+		/// \param expected_uniques Expected number of unique values (used for reserve()).
+		template<class TickType>
         void encode_volume(
                 std::vector<uint8_t>& output,
-                const MarketTick* ticks,
+                const TickType* ticks,
                 size_t num_ticks,
-                double volume_scale) {
+                double volume_scale,
+				std::size_t expected_uniques = 16384) {
             auto &deltas_u32 = m_context.deltas_u32;
             auto &deltas_u64= m_context.deltas_u64;
-            auto &values_u32 = m_context.values_u32;
-            auto &values_u64 = m_context.values_u64;
-            auto &index_map_u32 = m_context.index_map_u32;
-            try {
-                deltas_u32.resize(num_ticks);
-                scale_volume_int32(ticks, deltas_u32.data(), num_ticks, volume_scale);
-                encode_frequency(deltas_u32.data(), deltas_u32.data(), num_ticks, values_u32, index_map_u32);
+            auto &dict_values_u32 = m_context.values_u32;
+            auto &dict_values_u64 = m_context.values_u64;
+			
+			deltas_u32.resize(num_ticks);
+			if (scale_volume_int32<TickType>(ticks, deltas_u32.data(), num_ticks, volume_scale)) {
+                encode_frequency(deltas_u32.data(), deltas_u32.data(), num_ticks, dict_values_u32, expected_uniques);
 
                 size_t repeats_size = 0;
                 encode_zero_with_repeats(deltas_u32.data(), deltas_u32.size(), deltas_u32.data(), repeats_size);
                 deltas_u32.resize(repeats_size);
 
-                encode_delta_sorted<uint32_t, uint32_t>(values_u32.data(), values_u32.data(), values_u32.size(), 0);
-                encode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), index_map_u32.size(), 0);
+                encode_delta_zig_zag_int32(dict_values_u32.data(), dict_values_u32.data(), dict_values_u32.size(), 0);
 
-                uint32_t values_length = values_u32.size();
-                values_length = (values_length << 1);
+                uint32_t dict_length = dict_values_u32.size();
+                dict_length = (dict_length << 1);
 
-                dfh::utils::append_vbyte<uint32_t>(output, values_length);
-                dfh::utils::append_simdcomp(output, values_u32.data(), values_u32.size());
-                dfh::utils::append_simdcomp(output, index_map_u32.data(), values_u32.size());
-
+                dfh::utils::append_vbyte<uint32_t>(output, dict_length);
+                dfh::utils::append_simdcomp(output, dict_values_u32.data(), dict_values_u32.size());
                 dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.size());
                 dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.data(), deltas_u32.size());
-            } catch(std::overflow_error& e) {
-                // Обработка ошибки scale_volume_int32, encode_frequency и encode_delta_sorted<uint32_t, uint32_t>
+            } else {
+                // Обработка ошибки scale_volume_int32, encode_frequency
                 deltas_u64.resize(num_ticks);
-                deltas_u32.resize(num_ticks);
-                scale_volume_int64(ticks, deltas_u64.data(), num_ticks, volume_scale);
-                encode_frequency(deltas_u64.data(), deltas_u32.data(), num_ticks, values_u64, index_map_u32);
+
+                scale_volume_int64<TickType>(ticks, deltas_u64.data(), num_ticks, volume_scale);
+                encode_frequency(deltas_u64.data(), deltas_u32.data(), num_ticks, dict_values_u64, expected_uniques);
 
                 size_t repeats_size = 0;
                 encode_zero_with_repeats(deltas_u32.data(), deltas_u32.size(), deltas_u32.data(), repeats_size);
                 deltas_u32.resize(repeats_size);
 
-                encode_delta_sorted<uint64_t, uint64_t>(values_u64.data(), values_u64.data(), values_u64.size(), 0);
-                encode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), index_map_u32.size(), 0);
+                encode_delta_zig_zag_int64(dict_values_u64.data(), dict_values_u64.data(), dict_values_u64.size(), 0);
 
-                uint32_t values_length = values_u64.size();
-                values_length = (values_length << 1) | 0x1;
+                uint32_t dict_length = dict_values_u64.size();
+                dict_length = (dict_length << 1) | 0x1;
 
-                dfh::utils::append_vbyte<uint32_t>(output, values_length);
-                dfh::utils::append_vbyte<uint64_t>(output, values_u64.data(), values_u64.size());
-                dfh::utils::append_simdcomp(output, index_map_u32.data(), values_u64.size());
-
+                dfh::utils::append_vbyte<uint32_t>(output, dict_length);
+                dfh::utils::append_vbyte<uint64_t>(output, dict_values_u64.data(), dict_values_u64.size());
                 dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.size());
                 dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.data(), deltas_u32.size());
             }
@@ -154,29 +148,29 @@ namespace dfh::compression {
         /// \param ticks Array of market ticks to encode.
         /// \param num_ticks Number of ticks to encode.
         /// \param initial_time Initial timestamp for delta calculations.
+		/// \param expected_uniques Expected number of unique values (used for reserve()).
+		template<class TickType>
         void encode_time(
-                std::vector<uint8_t>& output,
-                const MarketTick* ticks,
-                size_t num_ticks,
-                int64_t initial_time) {
+                std::vector<std::uint8_t>& output,
+                const TickType* ticks,
+                std::size_t num_ticks,
+                std::int64_t initial_time,
+				std::size_t expected_uniques = 16384) {
             auto &deltas_u32 = m_context.deltas_u32;
-            auto &values_u32 = m_context.values_u32;
-            auto &index_map_u32 = m_context.index_map_u32;
-
+            auto &dict_values_u32 = m_context.values_u32;
+ 
             deltas_u32.resize(num_ticks);
-            encode_time_delta(ticks, deltas_u32.data(), num_ticks, initial_time);
-            encode_frequency(deltas_u32.data(), deltas_u32.data(), num_ticks, values_u32, index_map_u32);
+            encode_time_delta<TickType>(ticks, deltas_u32.data(), num_ticks, initial_time);
+            encode_frequency(deltas_u32.data(), deltas_u32.data(), num_ticks, dict_values_u32, expected_uniques);
 
             size_t repeats_size = 0;
             encode_zero_with_repeats(deltas_u32.data(), deltas_u32.size(), deltas_u32.data(), repeats_size);
             deltas_u32.resize(repeats_size);
 
-            encode_delta_sorted<uint32_t, uint32_t>(values_u32.data(), values_u32.data(), values_u32.size(), 0);
-            encode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), index_map_u32.size(), 0);
+            encode_delta_zig_zag_u32(dict_values_u32.data(), dict_values_u32.data(), dict_values_u32.size(), 0);
 
-            dfh::utils::append_vbyte<uint32_t>(output, values_u32.size());
-            dfh::utils::append_simdcomp(output, values_u32.data(), values_u32.size());
-            dfh::utils::append_simdcomp(output, index_map_u32.data(), values_u32.size());
+            dfh::utils::append_vbyte<uint32_t>(output, dict_values_u32.size());
+            dfh::utils::append_simdcomp(output, dict_values_u32.data(), dict_values_u32.size());
 
             dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.size());
             dfh::utils::append_vbyte<uint32_t>(output, deltas_u32.data(), deltas_u32.size());
@@ -186,10 +180,13 @@ namespace dfh::compression {
         /// \param output Буфер для записи закодированных данных.
         /// \param trade_ids Массив идентификаторов сделок.
         /// \throws std::overflow_error Если delta_adj выходит за пределы int32_t.
+		template<class TickType>
         void encode_trade_id(
                 std::vector<uint8_t>& output,
-                const std::vector<uint64_t>& trade_ids) {
-            if (trade_ids.empty()) return;
+				const TickType* ticks,
+				std::size_t num_ticks,
+				std::int64_t initial_id) {
+            
 
             auto &deltas_u32 = m_context.deltas_u32;
             const size_t count = trade_ids.size();

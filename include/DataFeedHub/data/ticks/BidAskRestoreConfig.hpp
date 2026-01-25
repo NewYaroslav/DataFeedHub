@@ -5,10 +5,9 @@
 /// \file BidAskRestoreConfig.hpp
 /// \brief Bid/ask price restoration configuration for historical market data.
 
-#include <cstdint>
-#include <type_traits>
+#include "enums.hpp"
 
-#include "DataFeedHub/data/ticks/enums.hpp"
+#include <type_traits>
 
 namespace dfh {
 

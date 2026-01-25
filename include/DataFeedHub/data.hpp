@@ -16,10 +16,14 @@
 // Standard headers
 //------------------------------------------------------------------------------
 
-#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
+
+#include <array>
+
+
 #include <functional>
 #include <iostream>
 #include <list>
@@ -38,7 +42,9 @@
 // Third-party libraries
 //------------------------------------------------------------------------------
 
+#if defined(DFH_USE_NLOHMANN_JSON)
 #include <nlohmann/json.hpp>
+#endif
 
 //------------------------------------------------------------------------------
 // Utility headers
@@ -46,6 +52,7 @@
 
 #include "utils/string_utils.hpp"
 #include "utils/enum_utils.hpp"
+#include "utils/math_utils.hpp"
 
 //------------------------------------------------------------------------------
 // Core data structures

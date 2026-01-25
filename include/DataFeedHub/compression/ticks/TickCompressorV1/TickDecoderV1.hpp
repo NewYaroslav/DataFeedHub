@@ -22,184 +22,159 @@ namespace dfh::compression {
             : m_context(context) {}
 
         /// \brief Decodes the compressed price data.
-        /// \param ticks The array to store decompressed tick data.
-        /// \param binary The binary data buffer containing compressed data.
-        /// \param offset The current offset in the binary buffer, updated after decoding.
-        /// \param num_ticks The number of ticks to decode.
-        /// \param price_scale The scaling factor for price precision.
-        /// \param initial_price The initial price used for delta calculations.
-        void decode_price_last(
-                MarketTick* ticks,
-                const uint8_t* binary,
-                size_t& offset,
-                size_t num_ticks,
+        /// \tparam TickType Tick structure type.
+        /// \tparam PriceMember Pointer-to-member selecting the price field (double TickType::*).
+        /// \param ticks Array to store decompressed tick data.
+        /// \param binary Binary data buffer containing compressed data.
+        /// \param offset Current offset in the binary buffer, updated after decoding.
+        /// \param num_ticks Number of ticks to decode.
+        /// \param price_scale Scaling factor for price precision.
+        /// \param initial_price Initial price used for delta calculations.
+        template<class TickType, double TickType::* PriceMember>
+        void decode_price(
+                TickType* ticks,
+                const std::uint8_t* binary,
+                std::size_t& offset,
+                std::size_t num_ticks,
                 double price_scale,
-                int64_t initial_price) {
+                std::int64_t initial_price) {
             auto &deltas_u32 = m_context.deltas_u32;
             auto &deltas_u64= m_context.deltas_u64;
-            auto &values_u32 = m_context.values_u32;
-            auto &values_u64 = m_context.values_u64;
+            auto &dict_values_u32 = m_context.values_u32;
+            auto &dict_values_u64 = m_context.values_u64;
             auto &rle_u32 = m_context.rle_u32;
-            auto &code_to_value_u32 = m_context.code_to_value_u32;
-            auto &code_to_value_u64 = m_context.code_to_value_u64;
-            auto &index_map_u32 = m_context.index_map_u32;
 
-            uint32_t values_length = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
-            bool requires_int64 = static_cast<bool>(values_length & 0x1);
-            values_length >>= 1;
+            std::uint32_t dict_length = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
+            bool requires_int64 = static_cast<bool>(dict_length & 0x1);
+            dict_length >>= 1;
 
             if (requires_int64) {
-                values_u64.resize(values_length);
-                index_map_u32.resize(values_length);
-                dfh::utils::extract_vbyte(binary, offset, values_u64.data(), values_length);
-                dfh::utils::extract_simdcomp(binary, offset, index_map_u32.data(), values_length);
+                dict_values_u64.resize(dict_length);
+                dfh::utils::extract_vbyte(binary, offset, dict_values_u64.data(), dict_length);
 
-                size_t deltas_size = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
                 deltas_u32.resize(num_ticks);
+                std::size_t deltas_size = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
                 dfh::utils::extract_simdcomp(binary, offset, deltas_u32.data(), deltas_size);
 
-                decode_delta_sorted<uint64_t, uint64_t>(values_u64.data(), values_u64.data(), values_length, 0);
-                decode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), values_length, 0);
+                decode_delta_zig_zag_u64(dict_values_u64.data(), dict_values_u64.data(), dict_length, 0);
 
                 rle_u32.resize(num_ticks);
-                size_t repeats_size = 0;
+                std::size_t repeats_size = 0;
                 decode_zero_with_repeats(deltas_u32.data(), deltas_size, rle_u32.data(), repeats_size);
 
                 deltas_u64.resize(num_ticks);
-                code_to_value_u64.resize(values_length);
-                decode_frequency(rle_u32.data(), deltas_u64.data(), num_ticks, code_to_value_u64.data(), values_u64.data(), index_map_u32.data(), values_length);
-                decode_last_delta_zig_zag_int64(deltas_u64.data(), ticks, num_ticks, price_scale, initial_price);
+                decode_frequency(rle_u32.data(), deltas_u64.data(), num_ticks, dict_values_u64.data());
+                decode_price_delta_zig_zag_u64<TickType, PriceMember>(deltas_u64.data(), ticks, num_ticks, price_scale, initial_price);
             } else {
-                values_u32.resize(values_length);
-                index_map_u32.resize(values_length);
-                dfh::utils::extract_simdcomp(binary, offset, values_u32.data(), values_length);
-                dfh::utils::extract_simdcomp(binary, offset, index_map_u32.data(), values_length);
+                dict_values_u32.resize(dict_length);
+                dfh::utils::extract_simdcomp(binary, offset, dict_values_u32.data(), dict_length);
 
-                size_t deltas_size = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
+                std::size_t deltas_size = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
                 deltas_u32.resize(num_ticks);
                 dfh::utils::extract_simdcomp(binary, offset, deltas_u32.data(), deltas_size);
 
-                decode_delta_sorted<uint32_t, uint32_t>(values_u32.data(), values_u32.data(), values_length, 0);
-                decode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), values_length, 0);
+                decode_delta_zig_zag_u32(dict_values_u32.data(), dict_values_u32.data(), dict_length, 0);
 
                 rle_u32.resize(num_ticks);
-                size_t repeats_size = 0;
+                std::size_t repeats_size = 0;
                 decode_zero_with_repeats(deltas_u32.data(), deltas_size, rle_u32.data(), repeats_size);
 
-                code_to_value_u32.resize(values_length);
-                decode_frequency(rle_u32.data(), rle_u32.data(), num_ticks, code_to_value_u32.data(), values_u32.data(), index_map_u32.data(), values_length);
-                decode_last_delta_zig_zag_int32(rle_u32.data(), ticks, num_ticks, price_scale, initial_price);
+                decode_frequency(rle_u32.data(), rle_u32.data(), num_ticks, dict_values_u32.data());
+                decode_price_delta_zig_zag_u32(rle_u32.data(), ticks, num_ticks, price_scale, initial_price);
             }
         }
 
         /// \brief Decodes the compressed volume data.
+        /// \tparam TickType Tick structure type.
         /// \param ticks The array to store decompressed tick data.
         /// \param binary The binary data buffer containing compressed data.
         /// \param offset The current offset in the binary buffer, updated after decoding.
         /// \param num_ticks The number of ticks to decode.
         /// \param volume_scale The scaling factor for volume precision.
+        template<class TickType>
         void decode_volume(
-                MarketTick* ticks,
-                const uint8_t* binary,
-                size_t& offset,
-                size_t num_ticks,
+                TickType* ticks,
+                const std::uint8_t* binary,
+                std::size_t& offset,
+                std::size_t num_ticks,
                 double volume_scale) {
             auto &deltas_u32 = m_context.deltas_u32;
             auto &deltas_u64= m_context.deltas_u64;
-            auto &values_u32 = m_context.values_u32;
-            auto &values_u64 = m_context.values_u64;
+            auto &dict_values_u32 = m_context.values_u32;
+            auto &dict_values_u64 = m_context.values_u64;
             auto &rle_u32 = m_context.rle_u32;
-            auto &code_to_value_u32 = m_context.code_to_value_u32;
-            auto &code_to_value_u64 = m_context.code_to_value_u64;
-            auto &index_map_u32 = m_context.index_map_u32;
 
-            size_t values_length = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
-            bool requires_int64 = static_cast<bool>(values_length & 0x1);
-            values_length >>= 1;
-
-            index_map_u32.resize(values_length);
+            std::size_t dict_length = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
+            bool requires_int64 = static_cast<bool>(dict_length & 0x1);
+            dict_length >>= 1;
 
             if (requires_int64) {
-                values_u64.resize(values_length);
-                values_u32.resize(values_length);
-                dfh::utils::extract_vbyte(binary, offset, values_u64.data(), values_length);
-                dfh::utils::extract_simdcomp(binary, offset, index_map_u32.data(), values_length);
+                dict_values_u64.resize(dict_length);
+                dfh::utils::extract_vbyte(binary, offset, dict_values_u64.data(), dict_length);
 
-                size_t deltas_size = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
                 deltas_u32.resize(num_ticks);
+                std::size_t deltas_size = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
                 dfh::utils::extract_vbyte(binary, offset, deltas_u32.data(), deltas_size);
 
-                decode_delta_sorted<uint64_t, uint64_t>(values_u64.data(), values_u64.data(), values_length, 0);
-                decode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), values_length, 0);
+                decode_delta_zig_zag_u64(dict_values_u64.data(), dict_values_u64.data(), dict_length, 0);
 
                 rle_u32.resize(num_ticks);
-                size_t repeats_size = 0;
-                decode_zero_with_repeats(deltas_u32.data(), deltas_size, rle_u32.data(), repeats_size);
+                decode_zero_with_repeats(deltas_u32.data(), deltas_size, rle_u32.data());
 
                 deltas_u64.resize(num_ticks);
-                code_to_value_u64.resize(values_length);
-                decode_frequency(rle_u32.data(), deltas_u64.data(), num_ticks, code_to_value_u64.data(), values_u64.data(), index_map_u32.data(), values_length);
-                scale_volume<uint64_t, MarketTick>(deltas_u64.data(), ticks, num_ticks, volume_scale);
+                decode_frequency(rle_u32.data(), deltas_u64.data(), num_ticks, dict_values_u64.data());
+                unscale_volume<TickType>(deltas_u64.data(), ticks, num_ticks, volume_scale);
             } else {
-                values_u32.resize(values_length);
-                dfh::utils::extract_simdcomp(binary, offset, values_u32.data(), values_length);
-                dfh::utils::extract_simdcomp(binary, offset, index_map_u32.data(), values_length);
+                dict_values_u32.resize(dict_length);
+                dfh::utils::extract_simdcomp(binary, offset, dict_values_u32.data(), dict_length);
 
                 deltas_u32.resize(num_ticks);
-                size_t deltas_size = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
+                std::size_t deltas_size = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
                 dfh::utils::extract_vbyte(binary, offset, deltas_u32.data(), deltas_size);
 
-                decode_delta_sorted<uint32_t, uint32_t>(values_u32.data(), values_u32.data(), values_length, 0);
-                decode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), values_length, 0);
+                decode_delta_zig_zag_u32(dict_values_u32.data(), dict_values_u32.data(), dict_length, 0);
 
                 rle_u32.resize(num_ticks);
-                size_t repeats_size = 0;
-                decode_zero_with_repeats(deltas_u32.data(), deltas_size, rle_u32.data(), repeats_size);
+                decode_zero_with_repeats(deltas_u32.data(), deltas_size, rle_u32.data());
 
-                code_to_value_u32.resize(values_length);
-                decode_frequency(rle_u32.data(), rle_u32.data(), num_ticks, code_to_value_u32.data(), values_u32.data(), index_map_u32.data(), values_length);
-                scale_volume<uint32_t, MarketTick>(rle_u32.data(), ticks, num_ticks, volume_scale);
+                decode_frequency(rle_u32.data(), rle_u32.data(), num_ticks, dict_values_u32.data());
+                unscale_volume<TickType>(rle_u32.data(), ticks, num_ticks, volume_scale);
             }
         }
 
         /// \brief Decodes the compressed timestamp data.
+        /// \tparam TickType Tick structure type.
         /// \param ticks The array to store decompressed tick data.
         /// \param binary The binary data buffer containing compressed data.
         /// \param offset The current offset in the binary buffer, updated after decoding.
         /// \param num_ticks The number of ticks to decode.
         /// \param base_time The base time used for delta calculations.
+        template<class TickType>
         void decode_time(
-                MarketTick* ticks,
-                const uint8_t* binary,
-                size_t& offset,
-                size_t num_ticks,
-                uint64_t base_time) {
+                TickType* ticks,
+                const std::uint8_t* binary,
+                std::size_t& offset,
+                std::size_t num_ticks,
+                std::uint64_t base_time) {
             auto &deltas_u32 = m_context.deltas_u32;
-            auto &values_u32 = m_context.values_u32;
+            auto &dict_values_u32 = m_context.values_u32;
             auto &rle_u32 = m_context.rle_u32;
-            auto &code_to_value_u32 = m_context.code_to_value_u32;
-            auto &index_map_u32 = m_context.index_map_u32;
 
-            size_t values_length = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
-            values_u32.resize(values_length);
-            index_map_u32.resize(values_length);
-            dfh::utils::extract_simdcomp(binary, offset, values_u32.data(), values_length);
-            dfh::utils::extract_simdcomp(binary, offset, index_map_u32.data(), values_length);
+            std::size_t values_length = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
+            dict_values_u32.resize(values_length);
+            dfh::utils::extract_simdcomp(binary, offset, dict_values_u32.data(), values_length);
 
             deltas_u32.resize(num_ticks);
-            size_t deltas_size = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
+            std::size_t deltas_size = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
             dfh::utils::extract_vbyte(binary, offset, deltas_u32.data(), deltas_size);
 
-            decode_delta_sorted<uint32_t, uint32_t>(values_u32.data(), values_u32.data(), values_length, 0);
-            decode_delta_zig_zag_int32(index_map_u32.data(), index_map_u32.data(), values_length, 0);
+            decode_delta_zig_zag_u32(dict_values_u32.data(), dict_values_u32.data(), values_length, 0);
 
             rle_u32.resize(num_ticks);
-            size_t repeats_size = 0;
-            decode_zero_with_repeats(deltas_u32.data(), deltas_size, rle_u32.data(), repeats_size);
+            decode_zero_with_repeats(deltas_u32.data(), deltas_size, rle_u32.data());
 
-            code_to_value_u32.resize(values_length);
-            decode_frequency(rle_u32.data(), rle_u32.data(), num_ticks, code_to_value_u32.data(), values_u32.data(), index_map_u32.data(), values_length);
-            decode_time_delta(rle_u32.data(), ticks, num_ticks, base_time);
+            decode_frequency(rle_u32.data(), rle_u32.data(), num_ticks, dict_values_u32.data());
+            decode_time_delta<TickType>(rle_u32.data(), ticks, num_ticks, base_time);
         }
 
         /// \brief Декодирует trade_id: simdcomp -> RLE нулей -> zig-zag -> +1 -> накопление.
@@ -209,11 +184,11 @@ namespace dfh::compression {
         /// \param output Вектор для результата (может быть nullptr).
         /// \throws std::runtime_error Если количество восстановленных значений не совпадает с num_ticks.
         void decode_trade_id(
-                const uint8_t* binary,
-                size_t& offset,
-                size_t num_ticks,
-                std::vector<uint64_t>* output) {
-            const size_t encoded_size = dfh::utils::extract_vbyte<uint32_t>(binary, offset);
+                const std::uint8_t* binary,
+                std::size_t& offset,
+                std::size_t num_ticks,
+                std::vector<std::uint64_t>* output) {
+            const std::size_t encoded_size = dfh::utils::extract_vbyte<std::uint32_t>(binary, offset);
             auto &deltas_u32 = m_context.deltas_u32;
             auto &rle_u32 = m_context.rle_u32;
 
@@ -225,20 +200,20 @@ namespace dfh::compression {
             }
 
             rle_u32.resize(num_ticks);
-            size_t decoded_size = 0;
+            std::size_t decoded_size = 0;
             decode_zero_with_repeats(deltas_u32.data(), encoded_size, rle_u32.data(), decoded_size);
             if (decoded_size != num_ticks) {
                 throw std::runtime_error("decode_trade_id: decoded size does not match tick count");
             }
 
             output->resize(num_ticks);
-            int64_t prev = 0;
-            for (size_t i = 0; i < num_ticks; ++i) {
-                const uint32_t zigzag = rle_u32[i];
-                const int32_t delta_adj = static_cast<int32_t>((zigzag >> 1) ^ -(zigzag & 1));
-                const int64_t delta = static_cast<int64_t>(delta_adj) + 1;
-                const int64_t current = prev + delta;
-                (*output)[i] = static_cast<uint64_t>(current);
+            std::int64_t prev = 0;
+            for (std::size_t i = 0; i < num_ticks; ++i) {
+                const std::uint32_t zigzag = rle_u32[i];
+                const std::int32_t delta_adj = static_cast<std::int32_t>((zigzag >> 1) ^ -(zigzag & 1));
+                const std::int64_t delta = static_cast<std::int64_t>(delta_adj) + 1;
+                const std::int64_t current = prev + delta;
+                (*output)[i] = static_cast<std::uint64_t>(current);
                 prev = current;
             }
         }
@@ -250,27 +225,27 @@ namespace dfh::compression {
         /// \param num_ticks The number of ticks to decode.
         void decode_side_flags(
                 MarketTick* ticks,
-                const uint8_t* binary,
-                size_t& offset,
-                size_t num_ticks) {
-            constexpr size_t chunk_width = sizeof(uint8_t);
-            constexpr size_t bit_flag_buy  = 4;
-            constexpr size_t bit_flag_sell = 5;
-            constexpr uint64_t flag_mask = ~(
-                static_cast<uint64_t>(TickUpdateFlags::TICK_FROM_BUY) |
-                static_cast<uint64_t>(TickUpdateFlags::TICK_FROM_SELL));
-            const size_t aligned_size = num_ticks - (num_ticks % chunk_width);
+                const std::uint8_t* binary,
+                std::size_t& offset,
+                std::size_t num_ticks) {
+            constexpr std::size_t chunk_width = sizeof(std::uint8_t);
+            constexpr std::size_t bit_flag_buy  = 4;
+            constexpr std::size_t bit_flag_sell = 5;
+            constexpr std::uint64_t flag_mask = ~(
+                static_cast<std::uint64_t>(TickUpdateFlags::TICK_FROM_BUY) |
+                static_cast<std::uint64_t>(TickUpdateFlags::TICK_FROM_SELL));
+            const std::size_t aligned_size = num_ticks - (num_ticks % chunk_width);
 
-            uint64_t byte, value;
-            size_t max_j, byte_index = offset;
-            for (size_t i = 0; i < aligned_size; i += chunk_width, ++byte_index) {
+            std::uint64_t byte, value;
+            std::size_t max_j, byte_index = offset;
+            for (std::size_t i = 0; i < aligned_size; i += chunk_width, ++byte_index) {
                 max_j = i + chunk_width;
                 byte = binary[byte_index];
                 value = (byte & 0x1);
                 ticks[i].flags &= flag_mask;
                 ticks[i].flags |= value << bit_flag_buy;
                 ticks[i].flags |= !value << bit_flag_sell;
-                for (size_t j = i + 1; j < max_j; ++j) {
+                for (std::size_t j = i + 1; j < max_j; ++j) {
                     byte >>= 1;
                     value = (byte & 0x1);
                     ticks[j].flags &= flag_mask;
@@ -285,7 +260,7 @@ namespace dfh::compression {
                 ticks[aligned_size].flags &= flag_mask;
                 ticks[aligned_size].flags |= value << bit_flag_buy;
                 ticks[aligned_size].flags |= !value << bit_flag_sell;
-                for (size_t i = aligned_size + 1; i < num_ticks; ++i) {
+                for (std::size_t i = aligned_size + 1; i < num_ticks; ++i) {
                     byte >>= 1;
                     value = (byte & 0x1);
                     ticks[i].flags &= flag_mask;

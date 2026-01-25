@@ -20,9 +20,6 @@ namespace dfh::compression {
         std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> values_u32; ///< Stores unique 32-bit values extracted during frequency encoding.
         std::vector<uint64_t, dfh::utils::aligned_allocator<uint64_t, 16>> values_u64; ///< Stores unique 64-bit values extracted during frequency encoding.
         std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> rle_u32;    ///< Stores 32-bit run-length encoded (RLE) values. For flagged Run-Length Encoding (Flagged RLE)
-        std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> code_to_value_u32; ///< Maps encoded 32-bit values to their original values.
-        std::vector<uint64_t, dfh::utils::aligned_allocator<uint64_t, 16>> code_to_value_u64; ///< Maps encoded 64-bit values to their original values.
-        std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> index_map_u32;     ///< Stores index mappings for 32-bit frequency-encoded values.
         std::vector<uint8_t> processing_buffer; ///< General-purpose buffer for processing intermediate data.
 
         TickCompressionContextV1() = default;
@@ -36,9 +33,6 @@ namespace dfh::compression {
             values_u32.clear();
             values_u64.clear();
             rle_u32.clear();
-            code_to_value_u32.clear();
-            code_to_value_u64.clear();
-            index_map_u32.clear();
             processing_buffer.clear();
         }
     };

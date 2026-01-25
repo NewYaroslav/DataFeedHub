@@ -5,8 +5,16 @@
 /// \file utils.hpp
 /// \brief Compression utility.
 
-#include <zdict.h>
-#include <zstd.h>
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+#include <cmath>
+#include <limits>
+#include <vector>
+#include <unordered_map>
+#include <utility>
+#include <algorithm>
+#include <stdexcept>
 
 #ifdef __SSE2__
 #include <emmintrin.h>
@@ -16,9 +24,12 @@
 #include <smmintrin.h>
 #endif
 
-#ifdef __AVX__
+#ifdef defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX512DQ__)
 #include <immintrin.h>
 #endif
+
+#include <zdict.h>
+#include <zstd.h>
 
 #include "utils/frequency_encoding.hpp"
 #include "utils/repeat_encoding.hpp"

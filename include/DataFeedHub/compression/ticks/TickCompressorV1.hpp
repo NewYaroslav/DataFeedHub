@@ -175,24 +175,24 @@ namespace dfh::compression {
 
         /// \brief Deserializes QuoteTickL1 data and retrieves the configuration.
         void deserialize(
-            const std::vector<uint8_t>& input,
-            std::vector<QuoteTickL1>& ticks,
-            TickCodecConfig& config) override final {
+				const std::vector<uint8_t>& input,
+				std::vector<QuoteTickL1>& ticks,
+				TickCodecConfig& config) override final {
             deserialize_quote(input, ticks, config);
         }
 
         /// \brief Serializes TradeTick data into a binary format.
         void serialize(
-            const std::vector<TradeTick>& ticks,
-            std::vector<uint8_t>& output) override final {
+				const std::vector<TradeTick>& ticks,
+				std::vector<uint8_t>& output) override final {
             serialize_quote(ticks, output, true, false);
         }
 
         /// \brief Serializes TradeTick data with a configuration.
         void serialize(
-            const std::vector<TradeTick>& ticks,
-            const TickCodecConfig& config,
-            std::vector<uint8_t>& output) override final {
+				const std::vector<TradeTick>& ticks,
+				const TickCodecConfig& config,
+				std::vector<uint8_t>& output) override final {
             serialize_quote(ticks, config, output, true, false);
         }
 
@@ -341,11 +341,13 @@ namespace dfh::compression {
         /// \param ticks A vector of MarketTick structures representing the tick data.
         /// \param output A vector where the compressed data will be stored.
         /// \throw std::invalid_argument if the configuration is invalid (e.g., precision exceeds allowed digits).
-        void compress(
-                const std::vector<MarketTick>& ticks,
+        template<class TickT>
+		void compress(
+                const std::vector<TickT>& ticks,
                 std::vector<uint8_t>& output,
                 const std::vector<uint64_t>* trade_ids = nullptr) {
             if (ticks.empty()) return;
+
             if (!m_config.has_flag(TickStorageFlags::ENABLE_TICK_FLAGS)) {
                 throw std::invalid_argument(
                     "Trade-based encoding is disabled in the configuration. "
@@ -379,7 +381,7 @@ namespace dfh::compression {
             // Bit 5: Indicates if the first tick has the LAST_UPDATED flag set
             header = 0x00;
             header |= (m_config.volume_digits & 0x1F);
-            header |= (ticks[0].has_flag(TickUpdateFlags::LAST_UPDATED) << 5) & 0x20;
+            header |= (first_last_updated(ticks[0]) << 5) & 0x20;
             header |= (m_config.has_flag(TickStorageFlags::L1_TWO_VOLUMES) << 6) & 0x40;
             header |= (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID) << 7) & 0x80;
             buffer.push_back(header);
@@ -420,16 +422,16 @@ namespace dfh::compression {
                 ticks.size(),
                 base_unix_time);
 
-            /// \brief Запись trade_id в поток после времени и до флагов тика.
-            /// \details Пишется только если в конфигурации выставлен
-            /// TickStorageFlags::ENABLE_TRADE_ID и передан trade_ids.
-            /// Формат: [encoded_count:uint32][simdcomp(uint32)].
-            /// encoded_count = количество элементов после encode_zero_with_repeats.
-            /// Алгоритм: delta = curr - prev, delta_adj = delta - 1, zig-zag(int32),
-            /// затем encode_zero_with_repeats и simdcomp.
-            /// Флаг выставляется из TickCodecConfig (для Quote/Trade собирается из
-            /// факта наличия trade_ids в данных). При несовпадении флага и указателя
-            /// trade_ids запись пропускается.
+            // Запись trade_id в поток после времени и до флагов тика.
+            // Пишется только если в конфигурации выставлен
+            // TickStorageFlags::ENABLE_TRADE_ID и передан trade_ids.
+            // Формат: [encoded_count:uint32][simdcomp(uint32)].
+            // encoded_count = количество элементов после encode_zero_with_repeats.
+            // Алгоритм: delta = curr - prev, delta_adj = delta - 1, zig-zag(int32),
+            // затем encode_zero_with_repeats и simdcomp.
+            // Флаг выставляется из TickCodecConfig (для Quote/Trade собирается из
+            // факта наличия trade_ids в данных). При несовпадении флага и указателя
+            // trade_ids запись пропускается.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID) && trade_ids) {
                 m_encoder.encode_trade_id(buffer, *trade_ids);
             }
@@ -545,11 +547,11 @@ namespace dfh::compression {
                 num_ticks,
                 base_unix_time);
 
-            /// \brief Чтение trade_id из потока после времени и до флагов тика.
-            /// \details Выполняется только при флаге ENABLE_TRADE_ID в заголовке.
-            /// Читает encoded_count и simdcomp-массив, затем восстанавливает
-            /// нулевые повторы, zig-zag и delta+1. Если trade_ids == nullptr,
-            /// offset двигается, значения не записываются.
+            // Чтение trade_id из потока после времени и до флагов тика.
+            // Выполняется только при флаге ENABLE_TRADE_ID в заголовке.
+            // Читает encoded_count и simdcomp-массив, затем восстанавливает
+            // нулевые повторы, zig-zag и delta+1. Если trade_ids == nullptr,
+            // offset двигается, значения не записываются.
             if (m_config.has_flag(TickStorageFlags::ENABLE_TRADE_ID)) {
                 m_decoder.decode_trade_id(buffer.data(), offset, num_ticks, trade_ids);
             }
@@ -585,6 +587,15 @@ namespace dfh::compression {
             decompress(input, ticks);
             config = m_config;
         }
+		
+		template<class TickT>
+		static bool first_last_updated(const TickT&) {
+			return false;
+		}
+
+		static bool first_last_updated(const MarketTick& t) {
+			return t.has_flag(TickUpdateFlags::LAST_UPDATED);
+		}
 
         TickCompressionContextV1  m_context; ///< Compression context containing intermediate buffers.
         TickEncoderV1             m_encoder; ///< Encoder for market tick data.

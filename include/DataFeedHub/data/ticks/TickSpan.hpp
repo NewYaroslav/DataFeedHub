@@ -5,16 +5,7 @@
 /// \file TickSpan.hpp
 /// \brief Non-owning span for contiguous tick ranges.
 
-#include <cstddef>
-
 namespace dfh {
-
-    struct ValueTick;
-    struct QuoteTick;
-    struct QuoteTickVol;
-    struct QuoteTickL1;
-    struct MarketTick;
-    struct TradeTick;
 
     /// \struct TickSpan
     /// \brief Lightweight read-only view over a contiguous range of ticks.
@@ -49,12 +40,12 @@ namespace dfh {
         }
     };
 
-    using ValueTickSpan = TickSpan<ValueTick>;    ///< Span over `ValueTick`.
-    using QuoteTickSpan = TickSpan<QuoteTick>;    ///< Span over `QuoteTick`.
+    using ValueTickSpan = TickSpan<ValueTick>;       ///< Span over `ValueTick`.
+    using QuoteTickSpan = TickSpan<QuoteTick>;       ///< Span over `QuoteTick`.
     using QuoteTickVolSpan = TickSpan<QuoteTickVol>; ///< Span over `QuoteTickVol`.
-    using QuoteTickL1Span = TickSpan<QuoteTickL1>; ///< Span over `QuoteTickL1`.
-    using MarketTickSpan = TickSpan<MarketTick>;  ///< Span over `MarketTick`.
-    using TradeTickSpan = TickSpan<TradeTick>;    ///< Span over `TradeTick`.
+    using QuoteTickL1Span = TickSpan<QuoteTickL1>;   ///< Span over `QuoteTickL1`.
+    using MarketTickSpan = TickSpan<MarketTick>;     ///< Span over `MarketTick`.
+    using TradeTickSpan = TickSpan<TradeTick>;       ///< Span over `TradeTick`.
 }
 
 #endif // _DFH_DATA_TICK_SPAN_HPP_INCLUDED

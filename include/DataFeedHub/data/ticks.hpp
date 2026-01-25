@@ -5,6 +5,14 @@
 /// \file ticks.hpp
 /// \brief Umbrella-заголовок, объединяющий все типы и конфигурации тик-домена.
 
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+#include <cmath>
+#include <vector>
+
+
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
