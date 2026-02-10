@@ -111,7 +111,7 @@ namespace dfh::compression {
                 encode_zero_with_repeats(deltas_u32.data(), deltas_u32.size(), deltas_u32.data(), repeats_size);
                 deltas_u32.resize(repeats_size);
 
-                encode_delta_zig_zag_int32(dict_values_u32.data(), dict_values_u32.data(), dict_values_u32.size(), 0);
+                encode_delta_zig_zag_u32(dict_values_u32.data(), dict_values_u32.data(), dict_values_u32.size(), 0);
 
                 uint32_t dict_length = dict_values_u32.size();
                 dict_length = (dict_length << 1);
@@ -131,7 +131,7 @@ namespace dfh::compression {
                 encode_zero_with_repeats(deltas_u32.data(), deltas_u32.size(), deltas_u32.data(), repeats_size);
                 deltas_u32.resize(repeats_size);
 
-                encode_delta_zig_zag_int64(dict_values_u64.data(), dict_values_u64.data(), dict_values_u64.size(), 0);
+                encode_delta_zig_zag_u64(dict_values_u64.data(), dict_values_u64.data(), dict_values_u64.size(), 0);
 
                 uint32_t dict_length = dict_values_u64.size();
                 dict_length = (dict_length << 1) | 0x1;

@@ -2,52 +2,66 @@
 #ifndef _DFH_COMPRESSION_UTILS_ZIG_ZAG_DELTA_HPP_INCLUDED
 #define _DFH_COMPRESSION_UTILS_ZIG_ZAG_DELTA_HPP_INCLUDED
 
-/// \file zig_zag_delta.hpp
-/// \brief
+/// \file
+/// \brief Delta + ZigZag codecs (scalar/SIMD) and runtime dispatchers.
+///
+/// \warning Do NOT include this header directly.
+/// Include only via \c include/DataFeedHub/compression/utils.hpp to guarantee that all required
+/// dependencies and configuration macros are included in the correct order.
+///
+/// \details
+/// This header provides a set of delta + ZigZag codecs. Most algorithms have multiple
+/// implementations (scalar, SSE2, AVX2, etc.) to enable fair comparative benchmarking.
+/// In normal usage you should call the *dispatcher* functions: they automatically select
+/// the fastest supported implementation using compile-time feature macros.
+///
+/// \note Some low-level ZigZag helpers (encode/decode primitives) are located in \c zig_zag.hpp.
+///
+/// \section dfh_zigzag_delta_api API overview
+/// \subsection dfh_zigzag_delta_api_dispatch Dispatchers (use these in production)
+/// - \c encode_delta_zig_zag_u32(...)
+/// - \c encode_delta_zig_zag_i32(...)
+/// - \c encode_delta_zig_zag_u64(...)
+/// - \c encode_delta_zig_zag_i64(...)
+/// - \c decode_delta_zig_zag_u32(...)
+/// - \c decode_delta_zig_zag_i32(...)
+/// - \c decode_delta_zig_zag_u64(...)
+/// - \c decode_delta_zig_zag_i64(...)
+///
+/// \subsection dfh_zigzag_delta_api_scalar Scalar implementations (for correctness & benchmarks)
+/// - \c encode_delta_zig_zag_scalar_u32(...)
+/// - \c encode_delta_zig_zag_scalar_i32(...)
+/// - \c encode_delta_zig_zag_scalar_u64(...)
+/// - \c encode_delta_zig_zag_scalar_i64(...)
+/// - \c decode_delta_zig_zag_scalar_u32(...)
+/// - \c decode_delta_zig_zag_scalar_i32(...)
+/// - \c decode_delta_zig_zag_scalar_u64(...)
+/// - \c decode_delta_zig_zag_scalar_i64(...)
+///
+/// \subsection dfh_zigzag_delta_api_sse2 SSE2 implementations (benchmarks / optional direct use)
+/// - \c encode_delta_zig_zag_sse2_u32(...)
+/// - \c encode_delta_zig_zag_sse2_i32(...)
+/// - \c encode_delta_zig_zag_sse2_u64(...)
+/// - \c encode_delta_zig_zag_sse2_i64(...)
+/// - \c decode_delta_zig_zag_sse2_u32(...)
+/// - \c decode_delta_zig_zag_sse2_i32(...)
+/// - \c decode_delta_zig_zag_sse2_u64(...)
+/// - \c decode_delta_zig_zag_sse2_i64(...)
+///
+/// \subsection dfh_zigzag_delta_api_avx2 AVX2 implementations (benchmarks / optional direct use)
+/// - \c encode_delta_zig_zag_avx2_u32(...)
+/// - \c encode_delta_zig_zag_avx2_i32(...)
+/// - \c encode_delta_zig_zag_avx2_u64(...)
+/// - \c encode_delta_zig_zag_avx2_i64(...)
+/// - \c decode_delta_zig_zag_avx2_u32(...)
+/// - \c decode_delta_zig_zag_avx2_i32(...)
+/// - \c decode_delta_zig_zag_avx2_u64(...)
+/// - \c decode_delta_zig_zag_avx2_i64(...)
+
+
+#include "zig_zag.hpp"
 
 namespace dfh::compression {
-    
-    /// \ingroup dfh_compression
-    /// \brief Encodes a 32-bit signed integer to ZigZag-encoded uint32.
-    /// \details ZigZag encoding maps negative numbers to positive and uses bit shifts to encode the sign.
-    /// This is the reverse of the ZigZag decoding.
-    /// \param value Signed integer to be encoded.
-    /// \return The ZigZag-encoded unsigned integer.
-    inline std::uint32_t zigzag_encode_u32(std::int32_t value) noexcept {
-        return static_cast<std::uint32_t>((value << 1) ^ (value >> 31));
-    }
-
-    /// \ingroup dfh_compression
-    /// \brief Encodes a 64-bit signed integer to ZigZag-encoded uint64.
-    /// \details ZigZag encoding maps negative numbers to positive and uses bit shifts to encode the sign.
-    /// This is the reverse of the ZigZag decoding.
-    /// \param value Signed integer to be encoded.
-    /// \return The ZigZag-encoded unsigned integer.
-    inline std::uint64_t zigzag_encode_u64(std::int64_t value) noexcept {
-        return static_cast<std::uint64_t>((value << 1) ^ (value >> 63));
-    }
-
-    /// \ingroup dfh_compression
-    /// \brief Decodes a ZigZag-encoded uint32 to a signed 32-bit integer.
-    /// \details The ZigZag decoding reverses the transformation that encodes negative numbers as positive values.
-    /// This function takes the ZigZag-encoded value and converts it back to the original signed integer.
-    /// \param z ZigZag-encoded unsigned integer to be decoded.
-    /// \return The decoded signed integer.
-    inline std::int32_t zigzag_decode_u32(std::uint32_t z) noexcept {
-        return static_cast<std::int32_t>((z >> 1) ^ (0u - (z & 1u)));
-    }
-
-    /// \ingroup dfh_compression
-    /// \brief Decodes a ZigZag-encoded uint64 to a signed 64-bit integer.
-    /// \details The ZigZag decoding reverses the transformation that encodes negative numbers as positive values.
-    /// This function takes the ZigZag-encoded value and converts it back to the original signed integer.
-    /// \param z ZigZag-encoded unsigned integer to be decoded.
-    /// \return The decoded signed integer.
-    inline std::int64_t zigzag_decode_u64(std::uint64_t z) noexcept {
-        return static_cast<std::int64_t>((z >> 1) ^ (0ull - (z & 1ull)));
-    }
-    
-//------------------------------------------------------------------------------
 
     /// \brief Checks whether the mathematical difference (a - b) fits in int32_t.
     /// \details Does not evaluate signed (a - b). Uses uint64_t wraparound arithmetic (mod 2^64)
@@ -61,7 +75,7 @@ namespace dfh::compression {
 
         std::uint64_t d  = ua - ub; // modulo 2^64
         // Shift by -INT32_MIN (= 2^31) and check that the result fits in 32 bits.
-        std::uint64_t x  = d - static_cast<std::uint64_t>(static_cast<std::int64_t>(INT32_MIN)); // subtract (-2^31) => add 2^31
+        std::uint64_t x  = d - static_cast<std::uint64_t>(static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min())); // subtract (-2^31) => add 2^31
 
         return x <= 0xFFFFFFFFull; // fits in int32 range
     }
@@ -103,12 +117,12 @@ namespace dfh::compression {
             InputType initial_value
         ) {
         if (size == 0) return;
-
-        for (std::size_t i = 0; i < size; ++i) {
-            // Compute in a widened unsigned type when possible to avoid surprises on casts.
-            using Wide = std::conditional_t<
+        
+        // Compute in a widened unsigned type when possible to avoid surprises on casts.
+        using Wide = std::conditional_t<
                 (sizeof(InputType) > sizeof(OutputType)), InputType, OutputType>;
 
+        for (std::size_t i = 0; i < size; ++i) {
             const Wide prev = static_cast<Wide>(initial_value);
             const Wide cur  = static_cast<Wide>(input[i]);
             const Wide d    = cur - prev;
@@ -239,33 +253,34 @@ namespace dfh::compression {
     /// \brief Tries to encode trade IDs as ZigZag-encoded int32 deltas stored in \c uint32_t.
     /// \details
     /// Stores deltas as: \c delta = (cur_id - prev_id - 1).
-    /// This makes consecutive IDs (prev_id + 1) produce zero deltas, improving compression.
+    /// This makes consecutive IDs (\c prev_id + 1) produce zero deltas, improving compression.
+    /// The encoding works for any ID sequence (increasing, decreasing, repeating), but compression
+    /// is typically best when IDs are close to consecutive.
     /// The function is intended for "try u32, fallback to u64": it returns \c false if a delta
     /// does not fit into \c int32_t.
     /// \tparam TickType Tick structure type. Must provide:
     /// - \c trade_id() returning an integer ID (expected to fit into \c int64_t),
     /// - \c set_trade_id(uint64_t) for decoding.
     /// \param ticks Pointer to input ticks.
-    /// \param output Output buffer for encoded deltas. Must contain at least \p size elements.
+    /// \param deltas Output buffer for encoded deltas. Must contain at least \p size elements.
     /// \param size Number of ticks to encode.
     /// \param initial_id Base ID used for the first delta.
     /// \return \c true if all deltas fit in \c int32_t; otherwise \c false.
-    /// \throw std::invalid_argument If \p initial_id is out of range or if IDs are not strictly increasing.
-    ///
-    /// \note This encoder assumes \c trade_id fits into signed 64-bit and is strictly increasing.
+    /// \throw std::invalid_argument If \p initial_id is out of range, or if an intermediate
+    ///        signed 64-bit difference overflows.
     template<class TickType>
     bool encode_id_delta_u32(
             const TickType* ticks,
-            std::uint32_t* output,
+            std::uint32_t* deltas,
             std::size_t size,
             std::int64_t initial_id) {
         if (size == 0) return true;
-		if (initial_id < 0 ||
+        if (initial_id < 0 ||
             initial_id >= static_cast<std::int64_t>(TickType::max_trade_id())) {
             throw std::invalid_argument("encode_id_delta_u32: initial_id out of range");
         }
 
-		const std::int64_t first_id = static_cast<std::int64_t>(ticks[0].trade_id());
+        const std::int64_t first_id = static_cast<std::int64_t>(ticks[0].trade_id());
         if (first_id <= initial_id) {
             throw std::invalid_argument("encode_id_delta_u32: ticks[0].trade_id() <= initial_id");
         }
@@ -274,16 +289,217 @@ namespace dfh::compression {
         std::int64_t cur_id, delta;
         for (std::size_t i = 0; i < size; ++i) {
             cur_id = static_cast<std::int64_t>(ticks[i].trade_id());
-			if (!diff_fits_i64(cur_id, initial_id)) throw std::invalid_argument("encode_id_delta_u32: int64 diff overflow");
-			delta = cur_id - delta_offset;
+            if (!safe_diff_check_i64(cur_id, initial_id)) throw std::invalid_argument("encode_id_delta_u32: int64 diff overflow");
+            delta = cur_id - delta_offset;
             if (!diff_fits_i32(delta, initial_id)) return false; // fallback to u64 path 
             delta -= initial_id;
-            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            deltas[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
             initial_id = cur_id;
         }
         return true;
     }
     
+//------------------------------------------------------------------------------
+// Writer policy: default uses TickType::set_trade_id(uint64_t)
+// TradeTick specialization writes packed id_and_side preserving side bits.
+//------------------------------------------------------------------------------
+
+namespace detail {
+
+    template<class TickType>
+    struct trade_id_writer final {
+        static inline void write(TickType& tick, std::uint64_t trade_id) noexcept {
+            tick.set_trade_id(trade_id);
+        }
+    };
+
+    template<>
+    struct trade_id_writer<dfh::TradeTick> final {
+        static inline void write(dfh::TradeTick& tick, std::uint64_t trade_id) noexcept {
+            const std::uint64_t side_bits = tick.id_and_side & dfh::TradeTick::TRADE_SIDE_MASK;
+            const std::uint64_t id_part =
+                (trade_id & dfh::TradeTick::TRADE_ID_MASK) << dfh::TradeTick::TRADE_ID_SHIFT;
+            tick.id_and_side = id_part | side_bits;
+        }
+    };
+    
+    template<class TickType>
+    struct trade_id_reader final {
+        static inline std::uint64_t read(const TickType& tick) noexcept {
+            return tick.trade_id();
+        }
+    };
+
+    template<>
+    struct trade_id_reader<dfh::TradeTick> final {
+        static inline std::uint64_t read(const dfh::TradeTick& tick) noexcept {
+            return (tick.id_and_side >> dfh::TradeTick::TRADE_ID_SHIFT) & dfh::TradeTick::TRADE_ID_MASK;
+        }
+    };
+
+    template<class TickType>
+    static inline std::int64_t trade_id_i64(const TickType& tick) noexcept {
+        return static_cast<std::int64_t>(trade_id_reader<TickType>::read(tick));
+    }
+
+} // namespace dfh::compression::detail
+    
+//------------------------------------------------------------------------------
+// Scalar implementation for ZigZag decoding (no SIMD).
+//------------------------------------------------------------------------------
+
+    template<class TickType>
+    inline void decode_id_delta_scalar_u32(
+            const std::uint32_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            std::int64_t initial_id
+        ) noexcept {
+        constexpr std::int64_t delta_offset = 1;
+        std::int64_t cur = initial_id;
+
+        for (std::size_t i = 0; i < size; ++i) {
+            cur += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+    }
+    
+//------------------------------------------------------------------------------
+// SSE2: SIMD ZigZag + SIMD prefix-sum of increments, then scalar expand to int64
+// Notes:
+//  - We keep cur in int64 (correct).
+//  - We do NOT store SIMD results into uint64_t* (was a bug).
+//  - We can align-load deltas after a scalar prologue.
+//------------------------------------------------------------------------------
+
+#   if defined(__SSE2__)
+    template<class TickType>
+    inline void decode_id_delta_sse2_u32(
+            const std::uint32_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            std::int64_t initial_id
+        ) noexcept {
+        constexpr std::int64_t delta_offset = 1;
+        std::int64_t cur = initial_id;
+        std::size_t i = 0;
+
+        // Align deltas for aligned loads (16 bytes).
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(deltas + i) % align) == 0) break;
+            cur += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+
+        constexpr std::size_t simd_width = 4;
+        const std::size_t simd_end = i + ((size - i) / simd_width) * simd_width;
+
+        alignas(16) std::int32_t prefix[simd_width];
+        const __m128i ones = _mm_set1_epi32(static_cast<int>(delta_offset));
+
+        for (; i < simd_end; i += simd_width) {
+            const __m128i z = _mm_load_si128(reinterpret_cast<const __m128i*>(deltas + i));
+            __m128i d = zigzag_decode_u32_sse2(z);
+            d = _mm_add_epi32(d, ones); // increments = delta + 1
+
+            // Prefix sum in lanes: [a, a+b, a+b+c, a+b+c+d]
+            __m128i t = d;
+            t = _mm_add_epi32(t, _mm_slli_si128(t, 4));
+            t = _mm_add_epi32(t, _mm_slli_si128(t, 8));
+
+            _mm_store_si128(reinterpret_cast<__m128i*>(prefix), t);
+
+            // Expand to int64 and write
+            const std::uint64_t id0 = static_cast<std::uint64_t>(cur + static_cast<std::int64_t>(prefix[0]));
+            const std::uint64_t id1 = static_cast<std::uint64_t>(cur + static_cast<std::int64_t>(prefix[1]));
+            const std::uint64_t id2 = static_cast<std::uint64_t>(cur + static_cast<std::int64_t>(prefix[2]));
+            const std::uint64_t id3 = static_cast<std::uint64_t>(cur + static_cast<std::int64_t>(prefix[3]));
+
+            detail::trade_id_writer<TickType>::write(ticks[i + 0], id0);
+            detail::trade_id_writer<TickType>::write(ticks[i + 1], id1);
+            detail::trade_id_writer<TickType>::write(ticks[i + 2], id2);
+            detail::trade_id_writer<TickType>::write(ticks[i + 3], id3);
+
+            cur += static_cast<std::int64_t>(prefix[3]); // carry
+        }
+
+        for (; i < size; ++i) {
+            cur += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+    }
+#   endif
+
+//------------------------------------------------------------------------------
+// AVX2: same idea for 8 lanes
+//------------------------------------------------------------------------------
+
+#   if defined(__AVX2__)
+    template<class TickType>
+    inline void decode_id_delta_avx2_u32(
+            const std::uint32_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            std::int64_t initial_id
+        ) noexcept {
+        constexpr std::int64_t delta_offset = 1;
+        std::int64_t cur = initial_id;
+        std::size_t i = 0;
+
+        // Align deltas for aligned loads (32 bytes).
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(deltas + i) % align) == 0) break;
+            cur += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+
+        constexpr std::size_t simd_width = 8;
+        const std::size_t simd_end = i + ((size - i) / simd_width) * simd_width;
+
+        alignas(32) std::int32_t prefix[simd_width];
+        const __m256i ones = _mm256_set1_epi32(static_cast<int>(delta_offset));
+
+        for (; i < simd_end; i += simd_width) {
+            const __m256i z = _mm256_load_si256(reinterpret_cast<const __m256i*>(deltas + i));
+            __m256i d = zigzag_decode_u32_avx2(z);
+            d = _mm256_add_epi32(d, ones); // increments
+
+            // Prefix sum within each 128-bit lane
+            __m256i t = d;
+            t = _mm256_add_epi32(t, _mm256_slli_si256(t, 4));
+            t = _mm256_add_epi32(t, _mm256_slli_si256(t, 8));
+
+            // Carry from low 128 lane into high 128 lane
+            const __m128i low = _mm256_castsi256_si128(t);
+            const std::int32_t low_last = _mm_extract_epi32(low, 3);
+            const __m256i add_hi = _mm256_setr_epi32(0,0,0,0, low_last,low_last,low_last,low_last);
+            t = _mm256_add_epi32(t, add_hi);
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(prefix), t);
+
+            // Expand + write
+            for (std::size_t k = 0; k < simd_width; ++k) {
+                const std::uint64_t id =
+                    static_cast<std::uint64_t>(cur + static_cast<std::int64_t>(prefix[k]));
+                detail::trade_id_writer<TickType>::write(ticks[i + k], id);
+            }
+
+            cur += static_cast<std::int64_t>(prefix[simd_width - 1]);
+        }
+
+        for (; i < size; ++i) {
+            cur += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+    }
+#   endif
+
+//------------------------------------------------------------------------------
+// Dispatcher: chooses the best implementation based on available SIMD.
+//------------------------------------------------------------------------------
+        
     /// \ingroup dfh_tick_id_delta
     /// \brief Decodes ZigZag-encoded int32 deltas stored in \c uint32_t back into trade IDs.
     /// \details
@@ -295,18 +511,21 @@ namespace dfh::compression {
     /// \param initial_id Base ID used for the first reconstruction.
     /// \note No range validation is performed; caller must ensure input is valid.
     template<class TickType>
-    void decode_id_delta_u32(
+    inline void decode_id_delta_u32(
             const std::uint32_t* deltas,
             TickType* ticks,
             std::size_t size,
-            std::int64_t initial_id) {
-        constexpr std::int64_t delta_offset = 1;
-        for (std::size_t i = 0; i < size; ++i) {
-            initial_id += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i])) + delta_offset;
-            ticks[i].set_trade_id(static_cast<std::uint64_t>(initial_id));
-        }
+            std::int64_t initial_id) noexcept {
+        if (size == 0) return;
+#       if defined(__AVX2__)
+        decode_id_delta_avx2_u32(deltas, ticks, size, initial_id);
+#       elif defined(__SSE2__)
+        decode_id_delta_sse2_u32(deltas, ticks, size, initial_id);
+#       else
+        decode_id_delta_scalar_u32(deltas, ticks, size, initial_id);
+#       endif
     }
-    
+
     /// \ingroup dfh_tick_id_delta
     /// \brief Encodes trade IDs as ZigZag-encoded int64 deltas stored in \c uint64_t.
     /// \details
@@ -314,42 +533,184 @@ namespace dfh::compression {
     /// This makes consecutive IDs (prev_id + 1) produce zero deltas, improving compression.
     /// \tparam TickType Tick structure type. Must provide \c trade_id().
     /// \param ticks Pointer to input ticks.
-    /// \param output Output buffer for encoded deltas. Must contain at least \p size elements.
+    /// \param deltas Output buffer for encoded deltas. Must contain at least \p size elements.
     /// \param size Number of ticks to encode.
     /// \param initial_id Base ID used for the first delta.
     /// \throw std::invalid_argument If \p initial_id is out of range or if IDs are not strictly increasing.
-    ///
     /// \note This encoder assumes \c trade_id fits into signed 64-bit and is strictly increasing.
     template<class TickType>
     void encode_id_delta_u64(
             const TickType* ticks,
-            std::uint64_t* output,
+            std::uint64_t* deltas,
             std::size_t size,
             std::int64_t initial_id) {
         if (size == 0) return true;
-		if (initial_id < 0 ||
+        if (initial_id < 0 ||
             initial_id >= static_cast<std::int64_t>(TickType::max_trade_id())) {
-            throw std::invalid_argument("encode_id_delta_u32: initial_id out of range");
+            throw std::invalid_argument("encode_id_delta_u64: initial_id out of range");
         }
 
-		const std::int64_t first_id = static_cast<std::int64_t>(ticks[0].trade_id());
+        const std::int64_t first_id = static_cast<std::int64_t>(ticks[0].trade_id());
         if (first_id <= initial_id) {
-            throw std::invalid_argument("encode_id_delta_u32: ticks[0].trade_id() <= initial_id");
+            throw std::invalid_argument("encode_id_delta_u64: ticks[0].trade_id() <= initial_id");
         }
 
         constexpr std::int64_t delta_offset = 1;
         std::int64_t cur_id, delta;
         for (std::size_t i = 0; i < size; ++i) {
             cur_id = static_cast<std::int64_t>(ticks[i].trade_id());
-			if (!diff_fits_i64(cur_id, initial_id)) throw std::invalid_argument("encode_id_delta_u64: int64 diff overflow");
-			delta = cur_id - delta_offset;
-            if (!diff_fits_i64(delta, initial_id)) throw std::invalid_argument("encode_id_delta_u64: int64 diff overflow");
+            if (!safe_diff_check_i64(cur_id, initial_id)) throw std::invalid_argument("encode_id_delta_u64: int64 diff overflow");
+            delta = cur_id - delta_offset;
+            if (!safe_diff_check_i64(delta, initial_id)) throw std::invalid_argument("encode_id_delta_u64: int64 diff overflow");
             delta -= initial_id;
-            output[i] = zigzag_encode_u64(delta);
+            deltas[i] = zigzag_encode_u64(delta);
             initial_id = cur_id;
         }
     }
     
+//------------------------------------------------------------------------------
+// Scalar implementation for ZigZag decoding (no SIMD).
+//------------------------------------------------------------------------------
+
+    template<class TickType>
+    inline void decode_id_delta_scalar_u64(
+            const std::uint64_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            std::int64_t initial_id
+        ) noexcept {
+        constexpr std::int64_t delta_offset = 1;
+        std::int64_t cur = initial_id;
+
+        for (std::size_t i = 0; i < size; ++i) {
+            cur += static_cast<std::int64_t>(zigzag_decode_u64(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+    }
+    
+//------------------------------------------------------------------------------
+// SSE2: 2 lanes of int64
+//------------------------------------------------------------------------------
+
+#   if defined(__SSE2__)
+    template<class TickType>
+    inline void decode_id_delta_sse2_u64(
+            const std::uint64_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            std::int64_t initial_id
+        ) noexcept {
+        constexpr std::int64_t delta_offset = 1;
+        std::int64_t cur = initial_id;
+        std::size_t i = 0;
+
+        // Align deltas for aligned loads (16 bytes).
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(deltas + i) % align) == 0) break;
+            cur += static_cast<std::int64_t>(zigzag_decode_u64(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+
+        constexpr std::size_t simd_width = 2;
+        const std::size_t simd_end = i + ((size - i) / simd_width) * simd_width;
+
+        alignas(16) std::int64_t prefix[simd_width];
+        const __m128i ones = _mm_set1_epi64x(delta_offset);
+
+        for (; i < simd_end; i += simd_width) {
+            const __m128i z = _mm_load_si128(reinterpret_cast<const __m128i*>(deltas + i));
+            __m128i d = zigzag_decode_u64_sse2(z);
+            d = _mm_add_epi64(d, ones); // increments = delta + 1
+
+            // Prefix sum for 2 lanes: [a, a+b]
+            __m128i t = d;
+            t = _mm_add_epi64(t, _mm_slli_si128(t, 8));
+
+            _mm_store_si128(reinterpret_cast<__m128i*>(prefix), t);
+
+            const std::uint64_t id0 = static_cast<std::uint64_t>(cur + prefix[0]);
+            const std::uint64_t id1 = static_cast<std::uint64_t>(cur + prefix[1]);
+
+            detail::trade_id_writer<TickType>::write(ticks[i + 0], id0);
+            detail::trade_id_writer<TickType>::write(ticks[i + 1], id1);
+
+            cur += prefix[1];
+        }
+
+        for (; i < size; ++i) {
+            cur += static_cast<std::int64_t>(zigzag_decode_u64(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+    }
+#   endif
+
+//------------------------------------------------------------------------------
+// AVX2: 4 lanes of int64
+//------------------------------------------------------------------------------
+
+#   if defined(__AVX2__)
+    template<class TickType>
+    inline void decode_id_delta_avx2_u64(
+            const std::uint64_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            std::int64_t initial_id
+        ) noexcept {
+        constexpr std::int64_t delta_offset = 1;
+        std::int64_t cur = initial_id;
+        std::size_t i = 0;
+
+        // Align deltas for aligned loads (32 bytes).
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(deltas + i) % align) == 0) break;
+            cur += static_cast<std::int64_t>(zigzag_decode_u64(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+
+        constexpr std::size_t simd_width = 4;
+        const std::size_t simd_end = i + ((size - i) / simd_width) * simd_width;
+
+        alignas(32) std::int64_t prefix[simd_width];
+        const __m256i ones = _mm256_set1_epi64x(delta_offset);
+
+        for (; i < simd_end; i += simd_width) {
+            const __m256i z = _mm256_load_si256(reinterpret_cast<const __m256i*>(deltas + i));
+            __m256i d = zigzag_decode_u64_avx2(z);
+            d = _mm256_add_epi64(d, ones); // increments
+
+            // Prefix sum inside each 128-bit lane (2 + 2), then carry to high lane.
+            __m256i t = d;
+            t = _mm256_add_epi64(t, _mm256_slli_si256(t, 8)); // within each 128: [a, a+b] | [c, c+d]
+
+            // carry from low lane last (element 1) to high lane elements (2..3)
+            const __m128i low = _mm256_castsi256_si128(t);
+            const std::int64_t low_last = _mm_cvtsi128_si64(_mm_srli_si128(low, 8)); // element 1
+            const __m256i add_hi = _mm256_setr_epi64x(0, 0, low_last, low_last);
+            t = _mm256_add_epi64(t, add_hi); // now: [a, a+b, a+b+c, a+b+c+d]
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(prefix), t);
+
+            for (std::size_t k = 0; k < simd_width; ++k) {
+                const std::uint64_t id = static_cast<std::uint64_t>(cur + prefix[k]);
+                detail::trade_id_writer<TickType>::write(ticks[i + k], id);
+            }
+
+            cur += prefix[simd_width - 1];
+        }
+
+        for (; i < size; ++i) {
+            cur += static_cast<std::int64_t>(zigzag_decode_u64(deltas[i])) + delta_offset;
+            detail::trade_id_writer<TickType>::write(ticks[i], static_cast<std::uint64_t>(cur));
+        }
+    }
+#   endif
+
+//------------------------------------------------------------------------------
+// Dispatcher
+//------------------------------------------------------------------------------
+
     /// \ingroup dfh_tick_id_delta
     /// \brief Decodes ZigZag-encoded int64 deltas stored in \c uint64_t back into trade IDs.
     /// \details
@@ -361,16 +722,20 @@ namespace dfh::compression {
     /// \param initial_id Base ID used for the first reconstruction.
     /// \note No range validation is performed; caller must ensure input is valid.
     template<class TickType>
-    void decode_id_delta_u64(
+    inline void decode_id_delta_u64(
             const std::uint64_t* deltas,
             TickType* ticks,
             std::size_t size,
-            std::int64_t initial_id) {
-        constexpr std::int64_t delta_offset = 1;
-        for (std::size_t i = 0; i < size; ++i) {
-            initial_id += zigzag_decode_u64(deltas[i]) + delta_offset;
-            ticks[i].set_trade_id(static_cast<std::uint64_t>(initial_id));
-        }
+            std::int64_t initial_id
+        ) noexcept {
+        if (size == 0) return;
+#       if defined(__AVX2__)
+        decode_id_delta_avx2_u64(deltas, ticks, size, initial_id);
+#       elif defined(__SSE2__)
+        decode_id_delta_sse2_u64(deltas, ticks, size, initial_id);
+#       else
+        decode_id_delta_scalar_u64(deltas, ticks, size, initial_id);
+#       endif
     }
 
 //------------------------------------------------------------------------------
@@ -419,6 +784,325 @@ namespace dfh::compression {
     /// \note Decode functions write only the selected field; other fields in ticks are untouched.
     /// \note The int32 variant validates that each delta fits into int32 range.
 
+namespace detail {
+
+#   if defined(__SSE2__)
+    static inline bool llround_like_2pd_to_2i32_sse2(__m128d x, __m128d scale, __m128i& out2) noexcept {
+        __m128d v = _mm_mul_pd(x, scale);
+
+        // abs(v)
+        const __m128d sign_mask = _mm_set1_pd(-0.0);
+        __m128d av = _mm_andnot_pd(sign_mask, v);
+
+        // range check for int32 after rounding: |v| <= INT32_MAX + 0.5, NaN fails compare
+        const __m128d maxv = _mm_set1_pd(2147483647.5);
+        __m128d ok = _mm_cmple_pd(av, maxv);
+        if ((_mm_movemask_pd(ok) & 0b11) != 0b11) return false;
+
+        // y = v + copysign(0.5, v)
+        __m128d half = _mm_set1_pd(0.5);
+        __m128d sign = _mm_and_pd(v, sign_mask);
+        __m128d signed_half = _mm_or_pd(half, sign);
+        __m128d y = _mm_add_pd(v, signed_half);
+
+        out2 = _mm_cvttpd_epi32(y); // 2 int32 in low lanes
+        return true;
+    }
+
+    // overflow check for int32 subtraction: overflow if ((a^b)&(a^d)) has sign bit.
+    static inline bool sub_overflow_i32_sse2(__m128i a, __m128i b, __m128i d) noexcept {
+        __m128i t1 = _mm_xor_si128(a, b);
+        __m128i t2 = _mm_xor_si128(a, d);
+        __m128i ov = _mm_and_si128(t1, t2);
+        __m128i sign = _mm_srai_epi32(ov, 31);
+        return _mm_movemask_epi8(sign) != 0;
+    }
+    
+    static inline __m128i zigzag_i32_sse2(__m128i d) noexcept {
+        return _mm_xor_si128(_mm_slli_epi32(d, 1), _mm_srai_epi32(d, 31));
+    }
+#   endif
+
+#if defined(__AVX2__)
+    static inline bool llround_like_4pd_to_4i32_avx2(__m256d x, __m256d scale, __m128i& out4) noexcept {
+        __m256d v = _mm256_mul_pd(x, scale);
+
+        const __m256d sign_mask = _mm256_set1_pd(-0.0);
+        __m256d av = _mm256_andnot_pd(sign_mask, v);
+
+        const __m256d maxv = _mm256_set1_pd(2147483647.5);
+        __m256d ok = _mm256_cmp_pd(av, maxv, _CMP_LE_OQ);
+        if (_mm256_movemask_pd(ok) != 0b1111) return false;
+
+        __m256d half = _mm256_set1_pd(0.5);
+        __m256d sign = _mm256_and_pd(v, sign_mask);
+        __m256d signed_half = _mm256_or_pd(half, sign);
+        __m256d y = _mm256_add_pd(v, signed_half);
+
+        out4 = _mm256_cvttpd_epi32(y); // 4x i32
+        return true;
+    }
+
+    static inline bool sub_overflow_i32_avx2(__m256i a, __m256i b, __m256i d) noexcept {
+        __m256i t1 = _mm256_xor_si256(a, b);
+        __m256i t2 = _mm256_xor_si256(a, d);
+        __m256i ov = _mm256_and_si256(t1, t2);
+        __m256i sign = _mm256_srai_epi32(ov, 31);
+        return _mm256_movemask_epi8(sign) != 0;
+    }
+
+    static inline __m256i zigzag_i32_avx2(__m256i d) noexcept {
+        return _mm256_xor_si256(_mm256_slli_epi32(d, 1), _mm256_srai_epi32(d, 31));
+    }
+#   endif
+
+#if defined(__AVX512F__)
+    static inline bool llround_like_8pd_to_8i32_avx512(__m512d x, double scale, __m256i& out8) noexcept {
+        __m512d v = _mm512_mul_pd(x, _mm512_set1_pd(scale));
+
+        // abs(v)
+        const __m512d sign_mask = _mm512_set1_pd(-0.0);
+        __m512d av = _mm512_andnot_pd(sign_mask, v);
+
+        // mask: |v| <= INT32_MAX + 0.5 and ordered
+        const __m512d maxv = _mm512_set1_pd(2147483647.5);
+        __mmask8 ok = _mm512_cmp_pd_mask(av, maxv, _CMP_LE_OQ);
+        if (ok != 0xFF) return false;
+
+        // y = v + copysign(0.5, v)
+        __m512d half = _mm512_set1_pd(0.5);
+        __m512d sign = _mm512_and_pd(v, sign_mask);
+        __m512d signed_half = _mm512_or_pd(half, sign);
+        __m512d y = _mm512_add_pd(v, signed_half);
+
+        // trunc -> i32
+        out8 = _mm512_cvttpd_epi32(y); // returns __m256i with 8 int32
+        return true;
+    }
+#   endif
+
+} // namespace dfh::compression::detail
+
+    template<class TickType, double TickType::* PriceMember>
+    bool encode_price_delta_zig_zag_u32_scalar(
+            const TickType* ticks,
+            std::uint32_t* output,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        if (size == 0) return true;
+        std::int64_t scaled_price; 
+        for (std::size_t i = 0; i < size; ++i) {
+            scaled_price = static_cast<std::int64_t>(
+                std::llround((ticks[i].*PriceMember) * price_scale)
+            );
+            if (!diff_fits_i32(scaled_price, initial_price)) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(scaled_price - initial_price));
+            initial_price = scaled_price;
+        }
+        return true;
+    }
+
+#   if defined(__SSE2__)
+    template<class TickType, double TickType::* PriceMember>
+    bool encode_price_delta_zig_zag_u32_sse2(
+            const TickType* ticks,
+            std::uint32_t* output,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        if (size == 0) return true;
+
+        // SIMD u32 fast path requires scaled in int32 domain (otherwise return false => caller may use u64 variant)
+        std::int64_t prev64 = initial_price;
+        if (prev64 < std::numeric_limits<std::int32_t>::min() ||
+            prev64 > std::numeric_limits<std::int32_t>::max()) {
+            return false;
+        }
+        std::int32_t prev = static_cast<std::int32_t>(prev64);
+
+        const __m128d scale = _mm_set1_pd(price_scale);
+
+        std::size_t i = 0;
+
+        // Prologue: make i multiple of 4 so output store can be aligned if desired (you said output aligned-32 always).
+        // Here output[0] is at aligned address; i=0 already aligned. We'll write aligned stores starting at i=0 anyway.
+        double p0, p1, p2, p3;
+        __m128i s01, s23, cur, prevv, d, zz;
+        for (; i + 4 <= size; i += 4) {
+            // Load 4 doubles (AoS: scalar loads, then pack)
+            p0 = ticks[i + 0].*PriceMember;
+            p1 = ticks[i + 1].*PriceMember;
+            p2 = ticks[i + 2].*PriceMember;
+            p3 = ticks[i + 3].*PriceMember;
+
+            if (!llround_like_2pd_to_2i32_sse2(_mm_setr_pd(p0, p1), scale, s01)) break;
+            if (!llround_like_2pd_to_2i32_sse2(_mm_setr_pd(p2, p3), scale, s23)) break;
+
+            // Combine into [s0 s1 s2 s3] in one __m128i
+            cur = _mm_unpacklo_epi64(s01, s23);
+
+            // Build prev-vector = [prev, cur0, cur1, cur2]
+            prevv = _mm_slli_si128(cur, 4);
+            prevv = _mm_or_si128(prevv, _mm_cvtsi32_si128(prev));
+
+            d = _mm_sub_epi32(cur, prevv);
+
+            // delta must fit in int32: detect overflow of subtraction
+            if (sub_overflow_i32_sse2(cur, prevv, d)) return false;
+
+            zz = zigzag_i32_sse2(d);
+
+            // aligned store is ok if output aligned and i multiple of 4 (it is)
+            _mm_store_si128(reinterpret_cast<__m128i*>(output + i), zz);
+
+            // update prev = cur3
+            prev = _mm_cvtsi128_si32(_mm_shuffle_epi32(cur, _MM_SHUFFLE(3,3,3,3)));
+        }
+
+        // Scalar tail / fallback: exact llround + diff_fits_i32
+        prev64 = static_cast<std::int64_t>(prev);
+        for (; i < size; ++i) {
+            const std::int64_t cur64 = static_cast<std::int64_t>(
+                std::llround((ticks[i].*PriceMember) * price_scale)
+            );
+            if (!diff_fits_i32(cur64, prev64)) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(cur64 - prev64));
+            prev64 = cur64;
+        }
+        return true;
+    }
+#   endif
+
+#if defined(__AVX2__)
+    template<class TickType, double TickType::* PriceMember>
+    bool encode_price_delta_zig_zag_u32_avx2(
+            const TickType* ticks,
+            std::uint32_t* output,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        if (size == 0) return true;
+
+        std::int64_t prev64 = initial_price;
+        if (prev64 < std::numeric_limits<std::int32_t>::min() ||
+            prev64 > std::numeric_limits<std::int32_t>::max()) {
+            return false;
+        }
+        std::int32_t prev = static_cast<std::int32_t>(prev64);
+
+        const __m256d scale = _mm256_set1_pd(price_scale);
+
+        std::size_t i = 0;
+        for (; i + 8 <= size; i += 8) {
+            // Load 8 doubles scalar and pack into two __m256d
+            const double p0 = ticks[i + 0].*PriceMember;
+            const double p1 = ticks[i + 1].*PriceMember;
+            const double p2 = ticks[i + 2].*PriceMember;
+            const double p3 = ticks[i + 3].*PriceMember;
+            const double p4 = ticks[i + 4].*PriceMember;
+            const double p5 = ticks[i + 5].*PriceMember;
+            const double p6 = ticks[i + 6].*PriceMember;
+            const double p7 = ticks[i + 7].*PriceMember;
+
+            __m128i s0, s1;
+            if (!llround_like_4pd_to_4i32_avx2(_mm256_setr_pd(p0,p1,p2,p3), scale, s0)) break;
+            if (!llround_like_4pd_to_4i32_avx2(_mm256_setr_pd(p4,p5,p6,p7), scale, s1)) break;
+
+            __m256i cur = _mm256_castsi128_si256(s0);
+            cur = _mm256_inserti128_si256(cur, s1, 1); // [c0..c7] as i32
+
+            // prev vector: [prev, c0, c1, c2, c3, c4, c5, c6]
+            const __m256i idx = _mm256_setr_epi32(0,0,1,2,3,4,5,6);
+            __m256i prevv = _mm256_permutevar8x32_epi32(cur, idx);
+            prevv = _mm256_blend_epi32(prevv, _mm256_set1_epi32(prev), 0x01); // lane0 = prev
+
+            __m256i d = _mm256_sub_epi32(cur, prevv);
+            if (sub_overflow_i32_avx2(cur, prevv, d)) return false;
+
+            __m256i zz = zigzag_i32_avx2(d);
+
+            // aligned store (output aligned-32 and i multiple of 8)
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
+
+            // update prev = c7
+            prev = _mm256_extract_epi32(cur, 7);
+        }
+
+        // Scalar tail / fallback (exact semantics)
+        prev64 = static_cast<std::int64_t>(prev);
+        for (; i < size; ++i) {
+            const std::int64_t cur64 = static_cast<std::int64_t>(
+                std::llround((ticks[i].*PriceMember) * price_scale)
+            );
+            if (!diff_fits_i32(cur64, prev64)) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(cur64 - prev64));
+            prev64 = cur64;
+        }
+        return true;
+    }
+#   endif
+
+#   if defined(__AVX512F__)
+    template<class TickType, double TickType::* PriceMember>
+    bool encode_price_delta_zig_zag_u32_avx512(
+            const TickType* ticks,
+            std::uint32_t* output,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        if (size == 0) return true;
+        if (!ticks || !output) return true;
+
+        std::int64_t prev64 = initial_price;
+        if (prev64 < std::numeric_limits<std::int32_t>::min() ||
+            prev64 > std::numeric_limits<std::int32_t>::max()) {
+            return false;
+        }
+        std::int32_t prev = static_cast<std::int32_t>(prev64);
+
+        std::size_t i = 0;
+        for (; i + 8 <= size; i += 8) {
+            // pack 8 doubles
+            __m512d x = _mm512_setr_pd(
+                ticks[i+0].*PriceMember, ticks[i+1].*PriceMember, ticks[i+2].*PriceMember, ticks[i+3].*PriceMember,
+                ticks[i+4].*PriceMember, ticks[i+5].*PriceMember, ticks[i+6].*PriceMember, ticks[i+7].*PriceMember
+            );
+
+            __m256i cur;
+            if (!llround_like_8pd_to_8i32_avx512(x, price_scale, cur)) break;
+
+            // Same AVX2 i32 pipeline for delta+zigzag:
+            const __m256i idx = _mm256_setr_epi32(0,0,1,2,3,4,5,6);
+            __m256i prevv = _mm256_permutevar8x32_epi32(cur, idx);
+            prevv = _mm256_blend_epi32(prevv, _mm256_set1_epi32(prev), 0x01);
+
+            __m256i d = _mm256_sub_epi32(cur, prevv);
+            if (sub_overflow_i32_avx2(cur, prevv, d)) return false;
+
+            __m256i zz = zigzag_i32_avx2(d);
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
+            prev = _mm256_extract_epi32(cur, 7);
+        }
+
+        // Scalar tail/fallback
+        prev64 = static_cast<std::int64_t>(prev);
+        for (; i < size; ++i) {
+            const std::int64_t cur64 = static_cast<std::int64_t>(
+                std::llround((ticks[i].*PriceMember) * price_scale)
+            );
+            if (!diff_fits_i32(cur64, prev64)) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(cur64 - prev64));
+            prev64 = cur64;
+        }
+        return true;
+    }
+#   endif
 
     /// \ingroup dfh_tick_price_delta_zigzag
     /// \brief Encodes a selected price field as ZigZag-encoded int32 deltas stored in uint32.
@@ -438,23 +1122,154 @@ namespace dfh::compression {
             std::size_t size,
             double price_scale,
             std::int64_t initial_price
-        ) {
-        if (size == 0) return true;
-
-        constexpr std::int64_t min_i32 =
-            static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
-        constexpr std::int64_t max_i32 =
-            static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
-
-        std::int64_t scaled_price, delta; 
-        for (std::size_t i = 0; i < size; ++i) {
-            scaled_price = std::llround((ticks[i].*PriceMember) * price_scale);
-            if (!diff_fits_i32(scaled_price, initial_price)) return false;
-            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(scaled_price - initial_price));
-            initial_price = scaled_price;
-        }
-        return true;
+        ) noexcept {
+#       if defined(__AVX512F__)
+        return encode_price_delta_zig_zag_u32_avx512<TickType, PriceMember>(ticks, output, size, price_scale, initial_price);
+#       elif defined(__AVX2__)
+        return encode_price_delta_zig_zag_u32_avx2<TickType, PriceMember>(ticks, output, size, price_scale, initial_price);
+#       elif defined(__SSE2__)
+        return encode_price_delta_zig_zag_u32_sse2<TickType, PriceMember>(ticks, output, size, price_scale, initial_price);
+#       else
+        return encode_price_delta_zig_zag_u32_scalar<TickType, PriceMember>(ticks, output, size, price_scale, initial_price);
+#       endif
     }
+    
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+    template<class TickType, double TickType::* PriceMember>
+    void decode_price_delta_zig_zag_u32_scalar(
+            const std::uint32_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        const double inv_scale = 1.0 / price_scale;
+        std::int64_t prev64 = initial_price;
+
+        for (std::size_t i = 0; i < size; ++i) {
+            prev64 += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i]));
+            ticks[i].*PriceMember = static_cast<double>(prev64) * inv_scale;
+        }
+    }
+    
+#   if defined(__SSE2__)
+    template<class TickType, double TickType::* PriceMember>
+    void decode_price_delta_zig_zag_u32_sse2(
+            const std::uint32_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price) noexcept
+    {
+        const double inv_scale = 1.0 / price_scale;
+        std::int64_t prev64 = initial_price;
+
+        std::size_t i = 0;
+
+        for (; i < size && reinterpret_cast<std::uintptr_t>(&deltas[i]) % 16 != 0; ++i) {
+            prev64 += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i]));
+            ticks[i].*PriceMember = static_cast<double>(prev64) * inv_scale;
+        }
+
+        const std::size_t aligned_end = size - (size % 4);
+        alignas(16) std::int32_t tmp[4];
+        for (; i < aligned_end; i += 4) {
+            __m128i cur = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&deltas[i]));
+            __m128i decoded = zigzag_decode_u32_sse2(cur);
+            __m128i delta = _mm_add_epi32(decoded, _mm_set1_epi32(static_cast<std::int32_t>(prev64)));
+            _mm_store_si128(reinterpret_cast<__m128i*>(tmp), delta);
+            for (std::size_t j = 0; j < 4; ++j) {
+                ticks[i + j].*PriceMember = static_cast<double>(tmp[j]) * inv_scale;
+            }
+            prev64 = static_cast<std::int64_t>(tmp[3]);
+        }
+
+        for (; i < size; ++i) {
+            prev64 += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i]));
+            ticks[i].*PriceMember = static_cast<double>(prev64) * inv_scale;
+        }
+    }
+#   endif
+
+#   if defined(__AVX2__)
+    template<class TickType, double TickType::* PriceMember>
+    void decode_price_delta_zig_zag_u32_avx2(
+            const std::uint32_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        const double inv_scale = 1.0 / price_scale;
+        std::int64_t prev64 = initial_price;
+        std::size_t i = 0;
+
+        for (; i < size && reinterpret_cast<std::uintptr_t>(&deltas[i]) % 32 != 0; ++i) {
+            prev64 += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i]));
+            ticks[i].*PriceMember = static_cast<double>(prev64) * inv_scale;
+        }
+
+        const std::size_t aligned_end = size - (size % 8);
+        alignas(32) std::int32_t tmp[8];
+        for (; i < aligned_end; i += 8) {
+            __m256i cur = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&deltas[i]));
+            __m256i decoded = zigzag_decode_u32_avx2(cur);
+            __m256i delta = _mm256_add_epi32(decoded, _mm256_set1_epi32(static_cast<std::int32_t>(prev64)));
+            _mm256_store_si256(reinterpret_cast<__m256i*>(tmp), delta);
+            for (std::size_t j = 0; j < 8; ++j) {
+                ticks[i + j].*PriceMember = static_cast<double>(tmp[j]) * inv_scale;
+            }
+            prev64 = static_cast<std::int64_t>(tmp[7]);
+        }
+
+        for (; i < size; ++i) {
+            prev64 += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i]));
+            ticks[i].*PriceMember = static_cast<double>(prev64) * inv_scale;
+        }
+    }
+#   endif
+
+#   if defined(__AVX512F__)
+    template<class TickType, double TickType::* PriceMember>
+    void decode_price_delta_zig_zag_u32_avx512(
+            const std::uint32_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        const double inv_scale = 1.0 / price_scale;
+        std::int64_t prev64 = initial_price;
+        std::size_t i = 0;
+
+        for (; i < size && reinterpret_cast<std::uintptr_t>(&deltas[i]) % 64 != 0; ++i) {
+            prev64 += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i]));
+            ticks[i].*PriceMember = static_cast<double>(prev64) * inv_scale;
+        }
+
+        const std::size_t aligned_end = size - (size % 16);
+        alignas(64) std::int32_t tmp[16];
+        for (; i < aligned_end; i += 16) {
+            __m512i cur = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(&deltas[i]));
+            __m512i decoded = zigzag_decode_u32_avx512(cur);
+            __m512i delta = _mm512_add_epi32(decoded, _mm512_set1_epi32(static_cast<std::int32_t>(prev64)));
+            _mm512_store_si512(reinterpret_cast<__m512i*>(tmp), delta);
+            for (std::size_t j = 0; j < 16; ++j) {
+                ticks[i + j].*PriceMember = static_cast<double>(tmp[j]) * inv_scale;
+            }
+            prev64 = static_cast<std::int64_t>(tmp[15]);
+        }
+
+        for (; i < size; ++i) {
+            prev64 += static_cast<std::int64_t>(zigzag_decode_u32(deltas[i]));
+            ticks[i].*PriceMember = static_cast<double>(prev64) * inv_scale;
+        }
+    }
+#   endif
+
 
     /// \ingroup dfh_tick_price_delta_zigzag
     /// \brief Decodes ZigZag-encoded int32 deltas stored in uint32 into a selected price field.
@@ -473,15 +1288,177 @@ namespace dfh::compression {
             std::size_t size,
             double price_scale,
             std::int64_t initial_price
+        ) noexcept {
+#       if defined(__AVX512F__)
+        decode_price_delta_zig_zag_u32_avx512<TickType, PriceMember>(deltas, ticks, size, price_scale, initial_price);
+#       elif defined(__AVX2__)
+        decode_price_delta_zig_zag_u32_avx2<TickType, PriceMember>(deltas, ticks, size, price_scale, initial_price);
+#       elif defined(__SSE2__)
+        decode_price_delta_zig_zag_u32_sse2<TickType, PriceMember>(deltas, ticks, size, price_scale, initial_price);
+#       else
+        decode_price_delta_zig_zag_u32_scalar<TickType, PriceMember>(deltas, ticks, size, price_scale, initial_price);
+#       endif
+    }
+    
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+    template<class TickType, double TickType::* PriceMember>
+    void encode_price_delta_zig_zag_u64_scalar(
+            const TickType* ticks,
+            std::uint64_t* output,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
         ) {
-        const double inv_scale = 1.0 / price_scale;
-        std::int64_t scaled_price;
+        if (size == 0) return;
+        if (!ticks || !output) return;
+
+        std::int64_t cur;
         for (std::size_t i = 0; i < size; ++i) {
-            scaled_price = initial_price + zigzag_decode_u32(deltas[i]);
-            ticks[i].*PriceMember = static_cast<double>(scaled_price) * inv_scale;
-            initial_price = scaled_price;
+            cur = static_cast<std::int64_t>(
+                std::llround((ticks[i].*PriceMember) * price_scale)
+            );
+            if (!safe_diff_check_i64(cur, initial_price))
+                throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+            output[i] = zigzag_encode_u64(cur - initial_price);
+            initial_price = cur;
         }
     }
+    
+#   if defined(__AVX2__)
+    template<class TickType, double TickType::* PriceMember>
+    void encode_price_delta_zig_zag_u64_avx2(
+            const TickType* ticks,
+            std::uint64_t* output,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) {
+        if (size == 0) return;
+        if (!ticks || !output) return;
+
+        std::int64_t prev = initial_price;
+
+        std::size_t i = 0;
+        for (; i + 4 <= size; i += 4) {
+            const std::int64_t c0 = static_cast<std::int64_t>(std::llround((ticks[i+0].*PriceMember) * price_scale));
+            const std::int64_t c1 = static_cast<std::int64_t>(std::llround((ticks[i+1].*PriceMember) * price_scale));
+            const std::int64_t c2 = static_cast<std::int64_t>(std::llround((ticks[i+2].*PriceMember) * price_scale));
+            const std::int64_t c3 = static_cast<std::int64_t>(std::llround((ticks[i+3].*PriceMember) * price_scale));
+
+            // safe diff checks (scalar; cheap vs llround)
+            if (!safe_diff_check_i64(c0, prev)) throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+            if (!safe_diff_check_i64(c1, c0  )) throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+            if (!safe_diff_check_i64(c2, c1  )) throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+            if (!safe_diff_check_i64(c3, c2  )) throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+
+            // vectorize deltas + zigzag
+            __m256i cur  = _mm256_setr_epi64x(c0, c1, c2, c3);
+            __m256i prevv= _mm256_setr_epi64x(prev, c0, c1, c2);
+            __m256i d    = _mm256_sub_epi64(cur, prevv);
+
+            // sign mask: all-ones if d<0
+            __m256i sign = _mm256_cmpgt_epi64(_mm256_setzero_si256(), d);
+            __m256i zz   = _mm256_xor_si256(_mm256_slli_epi64(d, 1), sign);
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
+
+            prev = c3;
+        }
+
+        for (; i < size; ++i) {
+            const std::int64_t cur = static_cast<std::int64_t>(
+                std::llround((ticks[i].*PriceMember) * price_scale)
+            );
+            if (!safe_diff_check_i64(cur, prev))
+                throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+            output[i] = zigzag_encode_u64(cur - prev);
+            prev = cur;
+        }
+    }
+#   endif
+
+#   if defined(__AVX512DQ__) && defined(__AVX512F__)
+    template<class TickType, double TickType::* PriceMember>
+    void encode_price_delta_zig_zag_u64_avx512(
+            const TickType* ticks,
+            std::uint64_t* output,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price)
+    {
+        if (size == 0) return;
+        if (!ticks || !output) return;
+
+        std::int64_t prev = initial_price;
+
+        std::size_t i = 0;
+        for (; i + 8 <= size; i += 8) {
+            __m512d x = _mm512_setr_pd(
+                ticks[i+0].*PriceMember, ticks[i+1].*PriceMember, ticks[i+2].*PriceMember, ticks[i+3].*PriceMember,
+                ticks[i+4].*PriceMember, ticks[i+5].*PriceMember, ticks[i+6].*PriceMember, ticks[i+7].*PriceMember
+            );
+
+            __m512d v = _mm512_mul_pd(x, _mm512_set1_pd(price_scale));
+
+            // llround-like: trunc(v + copysign(0.5, v))
+            const __m512d sign_mask = _mm512_set1_pd(-0.0);
+            __m512d half = _mm512_set1_pd(0.5);
+            __m512d sign = _mm512_and_pd(v, sign_mask);
+            __m512d signed_half = _mm512_or_pd(half, sign);
+            __m512d y = _mm512_add_pd(v, signed_half);
+
+            // Convert trunc(y) -> i64
+            // cvt with trunc: cvttpd_epi64 exists in AVX512DQ
+            __m512i cur = _mm512_cvttpd_epi64(y);
+
+            // Build prev vector: [prev, c0, c1, ... c6]
+            __m512i prevv = _mm512_alignr_epi64(cur, cur, 7); // rotates; we’ll overwrite lane0 anyway
+            // after alignr, lane0 contains c7; fix by shifting:
+            // simpler: make index permute
+            const __m512i idx = _mm512_setr_epi64(0,0,1,2,3,4,5,6);
+            prevv = _mm512_permutexvar_epi64(idx, cur);
+            prevv = _mm512_mask_mov_epi64(prevv, 0x01, _mm512_set1_epi64(prev)); // lane0 = prev
+
+            __m512i d = _mm512_sub_epi64(cur, prevv);
+
+            // safe_diff_check_i64 for each lane? full SIMD overflow check is bulky.
+            // Here: follow your contract: throw if intermediate subtraction overflows int64.
+            // In practice prices won’t overflow int64; we do scalar check per element cheaply.
+            alignas(64) std::int64_t c[8];
+            _mm512_store_si512(reinterpret_cast<void*>(c), cur);
+
+            if (!safe_diff_check_i64(c[0], prev)) throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+            for (int k = 1; k < 8; ++k) {
+                if (!safe_diff_check_i64(c[k], c[k-1])) throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+            }
+
+            // ZigZag: (d<<1) ^ (d>>63)
+            __m512i signm = _mm512_cmpgt_epi64_mask(_mm512_setzero_si512(), d) ? _mm512_set1_epi64(-1) : _mm512_setzero_si512();
+            // better: generate sign per lane:
+            __mmask8 neg = _mm512_cmplt_epi64_mask(d, _mm512_setzero_si512());
+            __m512i signv = _mm512_mask_set1_epi64(_mm512_setzero_si512(), neg, -1);
+
+            __m512i zz = _mm512_xor_si512(_mm512_slli_epi64(d, 1), signv);
+
+            _mm512_store_si512(reinterpret_cast<void*>(output + i), zz);
+
+            prev = c[7];
+        }
+
+        for (; i < size; ++i) {
+            const std::int64_t cur = static_cast<std::int64_t>(
+                std::llround((ticks[i].*PriceMember) * price_scale)
+            );
+            if (!safe_diff_check_i64(cur, prev))
+                throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
+            output[i] = zigzag_encode_u64(cur - prev);
+            prev = cur;
+        }
+    }
+#   endif
 
     /// \ingroup dfh_tick_price_delta_zigzag
     /// \brief Encodes a selected price field as ZigZag-encoded int64 deltas stored in uint64.
@@ -500,18 +1477,210 @@ namespace dfh::compression {
             std::uint64_t* output,
             std::size_t size,
             double price_scale,
-            std::int64_t initial_price) {
+            std::int64_t initial_price
+        ) {
+#       if defined(__AVX512DQ__) && defined(__AVX512F__)
+        encode_price_delta_zig_zag_u64_avx512<TickType, PriceMember>(ticks, output, size, price_scale, initial_price);
+#       elif defined(__AVX2__)
+        encode_price_delta_zig_zag_u64_avx2<TickType, PriceMember>(ticks, output, size, price_scale, initial_price);
+#       else
+        // SSE2: no good vector ZigZag(i64); keep scalar
+        encode_price_delta_zig_zag_u64_scalar<TickType, PriceMember>(ticks, output, size, price_scale, initial_price);
+#       endif
+    }
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+    template<class TickType, double TickType::* PriceMember>
+    inline void decode_price_delta_zig_zag_u64_scalar(
+            const std::uint64_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
         if (size == 0) return;
-        constexpr std::int64_t min_i64 = std::numeric_limits<std::int64_t>::min();
-        constexpr std::int64_t max_i64 = std::numeric_limits<std::int64_t>::max();
-        std::int64_t scaled_price;
+        const double inv_scale = 1.0 / price_scale;
+        std::int64_t cur = initial_price;
         for (std::size_t i = 0; i < size; ++i) {
-            scaled_price = std::llround((ticks[i].*PriceMember) * price_scale);
-            if (!safe_diff_check_i64(scaled_price, initial_price)) throw std::overflow_error("encode_price_delta_zig_zag_u64: int64 delta overflow");
-            output[i] = zigzag_encode_u64(scaled_price - initial_price);
-            initial_price = scaled_price;
+            cur += zigzag_decode_u64_scalar(deltas[i]);
+            ticks[i].*PriceMember = static_cast<double>(cur) * inv_scale;
         }
     }
+    
+#   if defined(__SSE2__)
+    template<class TickType, double TickType::* PriceMember>
+    inline void decode_price_delta_zig_zag_u64_sse2(
+            const std::uint64_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        if (size == 0) return;
+        const double inv_scale = 1.0 / price_scale;
+        std::int64_t cur = initial_price;
+        std::size_t i = 0;
+
+        // Align for aligned loads (16 bytes).
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(deltas + i) % align) == 0) break;
+            cur += zigzag_decode_u64_scalar(deltas[i]);
+            ticks[i].*PriceMember = static_cast<double>(cur) * inv_scale;
+        }
+
+        constexpr std::size_t simd_width = 2;
+        const std::size_t simd_end = i + ((size - i) / simd_width) * simd_width;
+
+        alignas(16) std::int64_t prefix[simd_width];
+
+        for (; i < simd_end; i += simd_width) {
+            const __m128i z = _mm_load_si128(reinterpret_cast<const __m128i*>(deltas + i));
+            __m128i d = zigzag_decode_u64_sse2(z);
+
+            // Prefix sum within 128: [a, b] -> [a, a+b]
+            __m128i t = d;
+            t = _mm_add_epi64(t, _mm_slli_si128(t, 8));
+
+            _mm_store_si128(reinterpret_cast<__m128i*>(prefix), t);
+
+            // AoS store: scalar loop (как у тебя в примере)
+            ticks[i + 0].*PriceMember = static_cast<double>(cur + prefix[0]) * inv_scale;
+            ticks[i + 1].*PriceMember = static_cast<double>(cur + prefix[1]) * inv_scale;
+
+            cur += prefix[simd_width - 1];
+        }
+
+        for (; i < size; ++i) {
+            cur += zigzag_decode_u64_scalar(deltas[i]);
+            ticks[i].*PriceMember = static_cast<double>(cur) * inv_scale;
+        }
+    }
+#   endif
+
+#   if defined(__AVX2__)
+    template<class TickType, double TickType::* PriceMember>
+    inline void decode_price_delta_zig_zag_u64_avx2(
+            const std::uint64_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price) noexcept {
+        if (size == 0) return;
+        const double inv_scale = 1.0 / price_scale;
+        std::int64_t cur = initial_price;
+        std::size_t i = 0;
+        // Align for aligned loads (32 bytes).
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(deltas + i) % align) == 0) break;
+            cur += zigzag_decode_u64_scalar(deltas[i]);
+            ticks[i].*PriceMember = static_cast<double>(cur) * inv_scale;
+        }
+
+        constexpr std::size_t simd_width = 4;
+        const std::size_t simd_end = i + ((size - i) / simd_width) * simd_width;
+
+        alignas(32) std::int64_t prefix[simd_width];
+
+        for (; i < simd_end; i += simd_width) {
+            const __m256i z = _mm256_load_si256(reinterpret_cast<const __m256i*>(deltas + i));
+            __m256i d = zigzag_decode_u64_avx2(z);
+
+            // Prefix sum inside each 128-bit lane: [a,b] | [c,d] -> [a,a+b] | [c,c+d]
+            __m256i t = d;
+            t = _mm256_add_epi64(t, _mm256_slli_si256(t, 8));
+
+            // carry from low lane last (element 1) to high lane elements (2..3)
+            const __m128i low = _mm256_castsi256_si128(t);
+            const std::int64_t low_last = _mm_cvtsi128_si64(_mm_srli_si128(low, 8)); // element 1
+            const __m256i add_hi = _mm256_setr_epi64x(0, 0, low_last, low_last);
+            t = _mm256_add_epi64(t, add_hi); // [a, a+b, a+b+c, a+b+c+d]
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(prefix), t);
+
+            // AoS store: scalar loop
+            ticks[i + 0].*PriceMember = static_cast<double>(cur + prefix[0]) * inv_scale;
+            ticks[i + 1].*PriceMember = static_cast<double>(cur + prefix[1]) * inv_scale;
+            ticks[i + 2].*PriceMember = static_cast<double>(cur + prefix[2]) * inv_scale;
+            ticks[i + 3].*PriceMember = static_cast<double>(cur + prefix[3]) * inv_scale;
+
+            cur += prefix[simd_width - 1];
+        }
+
+        for (; i < size; ++i) {
+            cur += zigzag_decode_u64_scalar(deltas[i]);
+            ticks[i].*PriceMember = static_cast<double>(cur) * inv_scale;
+        }
+    }
+#   endif
+
+#   if defined(__AVX512F__)
+    template<class TickType, double TickType::* PriceMember>
+    inline void decode_price_delta_zig_zag_u64_avx512(
+            const std::uint64_t* deltas,
+            TickType* ticks,
+            std::size_t size,
+            double price_scale,
+            std::int64_t initial_price
+        ) noexcept {
+        if (size == 0 || !deltas || !ticks) return;
+
+        const double inv_scale = 1.0 / price_scale;
+        std::int64_t cur = initial_price;
+
+        std::size_t i = 0;
+
+        // Prefer aligned load if possible; otherwise use unaligned (still fast on many CPUs).
+        constexpr std::size_t align = 64;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(deltas + i) % align) == 0) break;
+            cur += zigzag_decode_u64_scalar(deltas[i]);
+            ticks[i].*PriceMember = static_cast<double>(cur) * inv_scale;
+        }
+
+        constexpr std::size_t simd_width = 8;
+        const std::size_t simd_end = i + ((size - i) / simd_width) * simd_width;
+
+        alignas(64) std::int64_t d[simd_width];
+        alignas(64) std::int64_t prefix[simd_width];
+
+        for (; i < simd_end; i += simd_width) {
+            __m512i z;
+            if ((reinterpret_cast<std::uintptr_t>(deltas + i) % align) == 0) {
+                z = _mm512_load_si512(reinterpret_cast<const void*>(deltas + i));
+            } else {
+                z = _mm512_loadu_si512(reinterpret_cast<const void*>(deltas + i));
+            }
+
+            __m512i dv = zigzag_decode_u64_avx512(z);
+            _mm512_store_si512(reinterpret_cast<void*>(d), dv);
+
+            // Small scalar prefix for the block (8 elems)
+            std::int64_t run = 0;
+            for (std::size_t k = 0; k < simd_width; ++k) {
+                run += d[k];
+                prefix[k] = run;
+            }
+
+            // AoS store
+            for (std::size_t k = 0; k < simd_width; ++k) {
+                ticks[i + k].*PriceMember = static_cast<double>(cur + prefix[k]) * inv_scale;
+            }
+
+            cur += prefix[simd_width - 1];
+        }
+
+        for (; i < size; ++i) {
+            cur += zigzag_decode_u64_scalar(deltas[i]);
+            ticks[i].*PriceMember = static_cast<double>(cur) * inv_scale;
+        }
+    }
+#   endif
+
 
     /// \ingroup dfh_tick_price_delta_zigzag
     /// \brief Decodes ZigZag-encoded int64 deltas stored in uint64 into a selected price field.
@@ -524,726 +1693,1276 @@ namespace dfh::compression {
     /// \param initial_price Initial scaled price value used to reconstruct the series.
     /// \note Writes only \p PriceMember in each tick; other fields remain unchanged.
     template<class TickType, double TickType::* PriceMember>
-    void decode_price_delta_zig_zag_u64(
+    inline void decode_price_delta_zig_zag_u64(
             const std::uint64_t* deltas,
             TickType* ticks,
             std::size_t size,
             double price_scale,
-            std::int64_t initial_price
-        ) {
-        const double inv_scale = 1.0 / price_scale;
-        std::int64_t scaled_price;
-        for (std::size_t i = 0; i < size; ++i) {
-            scaled_price = initial_price + zigzag_decode_u64(deltas[i]);
-            ticks[i].*PriceMember = static_cast<double>(scaled_price) * inv_scale;
-            initial_price = scaled_price;
-        }
+            std::int64_t initial_price) noexcept {
+#       if defined(__AVX512F__)
+        decode_price_delta_zig_zag_u64_avx512<TickType, PriceMember>(deltas, ticks, size, price_scale, initial_price);
+#       elif defined(__AVX2__)
+        decode_price_delta_zig_zag_u64_avx2<TickType, PriceMember>(deltas, ticks, size, price_scale, initial_price);
+#       elif defined(__SSE2__)
+        decode_price_delta_zig_zag_u64_sse2<TickType, PriceMember>(deltas, ticks, size, price_scale, initial_price);
+#       else
+        decode_price_delta_zig_zag_u64_scalar<TickType, PriceMember>(deltas, ticks, size, price_scale, initial_price);
+#       endif
     }
 
 //------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 
-    /// \brief Performs delta and Zig-Zag encoding in a single pass.
-    /// \param input Pointer to the input array.
-    /// \param output Pointer to the output array.
-    /// \param size Number of elements in the array.
-    /// \param initial_value
-    void encode_delta_zig_zag_u32(
+    inline bool encode_delta_zig_zag_u32_scalar(
+            const std::uint32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        constexpr std::int64_t minv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr std::int64_t maxv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+        std::int64_t d;
+        std::uint32_t prev = initial_value;
+        for (std::size_t i = 0; i < size; ++i) {
+            d = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(prev);
+            if (d < minv || d > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(d));
+            prev = input[i];
+        }
+        return true;
+    }
+
+    inline bool encode_delta_zig_zag_i32_scalar(
             const std::int32_t* input,
             std::uint32_t* output,
             std::size_t size,
-            std::int32_t initial_value) {
-        if (size == 0) return;
-        std::int32_t prev = initial_value, delta_value;
-#       if defined(__SSE2__)
-        constexpr std::size_t simd_width = 4;
-        const std::size_t aligned_size = size - ((size - 1) % simd_width);
-        __m128i delta;
+            std::uint32_t initial_value
+        ) noexcept {
+        constexpr std::int64_t minv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr std::int64_t maxv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
 
-        if (reinterpret_cast<std::uintptr_t>(input) % 16 == 0 &&
-            reinterpret_cast<std::uintptr_t>(output) % 16 == 0) {
-            if (aligned_size > 1) {
-                for (std::size_t i = 0; i < simd_width; ++i) {
-                    delta_value = input[i] - prev;
-                    output[i] = (delta_value << 1) ^ (delta_value >> 31);
-                    prev = input[i];
-                }
-            }
-            for (std::size_t i = simd_width; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi32(
-                    _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i - 1])));
-
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(_mm_slli_epi32(delta, 1),
-                        _mm_srai_epi32(delta, 31)));
-            }
-        } else {
-            for (std::size_t i = 1; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi32(
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i - 1])));
-
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(_mm_slli_epi32(delta, 1),
-                        _mm_srai_epi32(delta, 31)));
-            }
-        }
-
-        delta_value = input[0] - initial_value;
-        output[0] = (delta_value << 1) ^ (delta_value >> 31);
-        prev = aligned_size > 0 ? input[aligned_size - 1] : initial_value;
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            delta_value = input[i] - prev;
-            output[i] = (delta_value << 1) ^ (delta_value >> 31);
-            prev = input[i];
-        }
-#       else
+        std::int64_t d;
+        std::int64_t prev = static_cast<std::int64_t>(static_cast<std::int32_t>(initial_value));
         for (std::size_t i = 0; i < size; ++i) {
-            delta_value = input[i] - prev;
-            output[i] = (delta_value << 1) ^ (delta_value >> 31);
+            d = static_cast<std::int64_t>(input[i]) - prev;
+            if (d < minv || d > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(d));
+            prev = static_cast<std::int64_t>(input[i]);
+        }
+        return true;
+    }
+
+
+#   if defined(__SSE2__)
+    inline bool encode_delta_zig_zag_u32_sse2(
+            const std::uint32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value) noexcept {
+        constexpr std::int64_t minv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr std::int64_t maxv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+
+        std::size_t i = 0;
+        std::uint32_t prev = initial_value;
+
+        // align both for 16B stores/loads
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            const std::int64_t d = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(prev);
+            if (d < minv || d > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(d));
             prev = input[i];
         }
+
+        constexpr std::size_t W = 4;
+        const std::size_t end = i + ((size - i) / W) * W;
+        alignas(16) std::int32_t d[W];
+
+        for (; i < end; i += W) {
+            // scalar delta+check (safe)
+            for (std::size_t k = 0; k < W; ++k) {
+                const std::int64_t dk = static_cast<std::int64_t>(input[i + k]) - static_cast<std::int64_t>(prev);
+                if (dk < minv || dk > maxv) return false;
+                d[k] = static_cast<std::int32_t>(dk);
+                prev = input[i + k];
+            }
+            __m128i dv = _mm_load_si128(reinterpret_cast<const __m128i*>(d));
+            __m128i zz = zigzag_encode_u32_sse2(dv);
+            _mm_store_si128(reinterpret_cast<__m128i*>(output + i), zz);
+        }
+
+        for (; i < size; ++i) {
+            const std::int64_t dk = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(prev);
+            if (dk < minv || dk > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(dk));
+            prev = input[i];
+        }
+        return true;
+    }
+
+    inline bool encode_delta_zig_zag_i32_sse2(
+            const std::int32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        constexpr std::int64_t minv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr std::int64_t maxv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+
+        std::size_t i = 0;
+        std::int64_t prev = static_cast<std::int64_t>(static_cast<std::int32_t>(initial_value));
+
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            const std::int64_t d0 = static_cast<std::int64_t>(input[i]) - prev;
+            if (d0 < minv || d0 > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(d0));
+            prev = static_cast<std::int64_t>(input[i]);
+        }
+
+        constexpr std::size_t W = 4;
+        const std::size_t end = i + ((size - i) / W) * W;
+        alignas(16) std::int32_t d[W];
+
+        for (; i < end; i += W) {
+            for (std::size_t k = 0; k < W; ++k) {
+                const std::int64_t dk = static_cast<std::int64_t>(input[i + k]) - prev;
+                if (dk < minv || dk > maxv) return false;
+                d[k] = static_cast<std::int32_t>(dk);
+                prev = static_cast<std::int64_t>(input[i + k]);
+            }
+            __m128i dv = _mm_load_si128(reinterpret_cast<const __m128i*>(d));
+            __m128i zz = zigzag_encode_u32_sse2(dv);
+            _mm_store_si128(reinterpret_cast<__m128i*>(output + i), zz);
+        }
+
+        for (; i < size; ++i) {
+            const std::int64_t dk = static_cast<std::int64_t>(input[i]) - prev;
+            if (dk < minv || dk > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(dk));
+            prev = static_cast<std::int64_t>(input[i]);
+        }
+        return true;
+    }
+#   endif
+
+#   if defined(__AVX2__)
+    inline bool encode_delta_zig_zag_u32_avx2(
+            const std::uint32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        constexpr std::int64_t minv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr std::int64_t maxv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+
+        std::size_t i = 0;
+        std::uint32_t prev = initial_value;
+        std::int64_t delta;
+
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            delta = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(prev);
+            if (delta < minv || delta > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            prev = input[i];
+        }
+
+        constexpr std::size_t W = 8;
+        const std::size_t end = i + ((size - i) / W) * W;
+        alignas(32) std::int32_t d[W];
+
+        for (; i < end; i += W) {
+            for (std::size_t k = 0; k < W; ++k) {
+                delta = static_cast<std::int64_t>(input[i + k]) - static_cast<std::int64_t>(prev);
+                if (delta < minv || delta > maxv) return false;
+                d[k] = static_cast<std::int32_t>(delta);
+                prev = input[i + k];
+            }
+            __m256i dv = _mm256_load_si256(reinterpret_cast<const __m256i*>(d));
+            __m256i zz = zigzag_encode_u32_avx2(dv);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
+        }
+
+        for (; i < size; ++i) {
+            delta = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(prev);
+            if (delta < minv || delta > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            prev = input[i];
+        }
+        return true;
+    }
+
+    inline bool encode_delta_zig_zag_i32_avx2(
+            const std::int32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        constexpr std::int64_t minv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr std::int64_t maxv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+
+        std::size_t i = 0;
+        std::int64_t prev = static_cast<std::int64_t>(static_cast<std::int32_t>(initial_value));
+        std::int64_t delta;
+
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            delta = static_cast<std::int64_t>(input[i]) - prev;
+            if (delta < minv || delta > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            prev = static_cast<std::int64_t>(input[i]);
+        }
+
+        constexpr std::size_t W = 8;
+        const std::size_t end = i + ((size - i) / W) * W;
+        alignas(32) std::int32_t d[W];
+
+        for (; i < end; i += W) {
+            for (std::size_t k = 0; k < W; ++k) {
+                delta = static_cast<std::int64_t>(input[i + k]) - prev;
+                if (delta < minv || delta > maxv) return false;
+                d[k] = static_cast<std::int32_t>(delta);
+                prev = static_cast<std::int64_t>(input[i + k]);
+            }
+            __m256i dv = _mm256_load_si256(reinterpret_cast<const __m256i*>(d));
+            __m256i zz = zigzag_encode_u32_avx2(dv);
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
+        }
+
+        for (; i < size; ++i) {
+            delta = static_cast<std::int64_t>(input[i]) - prev;
+            if (delta < minv || delta > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            prev = static_cast<std::int64_t>(input[i]);
+        }
+        return true;
+    }
+#   endif
+
+#   if defined(__AVX512F__)
+    inline bool encode_delta_zig_zag_u32_avx512(
+            const std::uint32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        constexpr std::int64_t minv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr std::int64_t maxv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+
+        std::size_t i = 0;
+        std::uint32_t prev = initial_value;
+        std::int64_t delta;
+
+        constexpr std::size_t align = 64;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            delta = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(prev);
+            if (delta < minv || delta > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            prev = input[i];
+        }
+
+        constexpr std::size_t W = 16;
+        const std::size_t end = i + ((size - i) / W) * W;
+        alignas(64) std::int32_t d[W];
+
+        for (; i < end; i += W) {
+            for (std::size_t k = 0; k < W; ++k) {
+                delta = static_cast<std::int64_t>(input[i + k]) - static_cast<std::int64_t>(prev);
+                if (delta < minv || delta > maxv) return false;
+                d[k] = static_cast<std::int32_t>(delta);
+                prev = input[i + k];
+            }
+            __m512i dv = _mm512_load_si512(reinterpret_cast<const void*>(d));
+            __m512i zz = zigzag_encode_u32_avx512(dv);
+            _mm512_store_si512(reinterpret_cast<void*>(output + i), zz);
+        }
+
+        for (; i < size; ++i) {
+            delta = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(prev);
+            if (delta < minv || delta > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            prev = input[i];
+        }
+        return true;
+    }
+
+    inline bool encode_delta_zig_zag_i32_avx512(
+            const std::int32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        constexpr std::int64_t minv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr std::int64_t maxv = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+
+        std::size_t i = 0;
+        std::int64_t prev = static_cast<std::int64_t>(static_cast<std::int32_t>(initial_value));
+        std::int64_t delta;
+
+        constexpr std::size_t align = 64;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            delta = static_cast<std::int64_t>(input[i]) - prev;
+            if (delta < minv || delta > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            prev = static_cast<std::int64_t>(input[i]);
+        }
+
+        constexpr std::size_t W = 16;
+        const std::size_t end = i + ((size - i) / W) * W;
+        alignas(64) std::int32_t d[W];
+
+        for (; i < end; i += W) {
+            for (std::size_t k = 0; k < W; ++k) {
+                delta = static_cast<std::int64_t>(input[i + k]) - prev;
+                if (delta < minv || delta > maxv) return false;
+                d[k] = static_cast<std::int32_t>(delta);
+                prev = static_cast<std::int64_t>(input[i + k]);
+            }
+            __m512i dv = _mm512_load_si512(reinterpret_cast<const void*>(d));
+            __m512i zz = zigzag_encode_u32_avx512(dv);
+            _mm512_store_si512(reinterpret_cast<void*>(output + i), zz);
+        }
+
+        for (; i < size; ++i) {
+            delta = static_cast<std::int64_t>(input[i]) - prev;
+            if (delta < minv || delta > maxv) return false;
+            output[i] = zigzag_encode_u32(static_cast<std::int32_t>(delta));
+            prev = static_cast<std::int64_t>(input[i]);
+        }
+        return true;
+    }
+#   endif
+
+    inline bool encode_delta_zig_zag_u32(
+            const std::uint32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+#       if defined(__AVX512F__)
+        return encode_delta_zig_zag_u32_avx512(input, output, size, initial_value);
+#       elif defined(__AVX2__)
+        return encode_delta_zig_zag_u32_avx2(input, output, size, initial_value);
+#       elif defined(__SSE2__)
+        return encode_delta_zig_zag_u32_sse2(input, output, size, initial_value);
+#       else
+        return encode_delta_zig_zag_u32_scalar(input, output, size, initial_value);
 #       endif
     }
+
+    inline bool encode_delta_zig_zag_i32(
+            const std::int32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+#       if defined(__AVX512F__)
+        return encode_delta_zig_zag_i32_avx512(input, output, size, initial_value);
+#       elif defined(__AVX2__)
+        return encode_delta_zig_zag_i32_avx2(input, output, size, initial_value);
+#       elif defined(__SSE2__)
+        return encode_delta_zig_zag_i32_sse2(input, output, size, initial_value);
+#       else
+        return encode_delta_zig_zag_i32_scalar(input, output, size, initial_value);
+#       endif
+    }
+    
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+    inline void decode_delta_zig_zag_i32_scalar(
+            const std::uint32_t* input,
+            std::int32_t* output,
+            std::size_t size,
+            std::int32_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+        std::int32_t base = static_cast<std::int32_t>(initial_value + zigzag_decode_u32(input[0]));
+        output[0] = base;
+        for (std::size_t i = 1; i < size; ++i) {
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = base;
+        }
+    }
+
+    inline void decode_delta_zig_zag_u32_scalar(
+        const std::uint32_t* input,
+        std::uint32_t* output,
+        std::size_t size,
+        std::uint32_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+        std::uint32_t base = static_cast<std::uint32_t>(static_cast<std::int64_t>(initial_value) +
+                                                        static_cast<std::int64_t>(zigzag_decode_u32(input[0])));
+        output[0] = base;
+        for (std::size_t i = 1; i < size; ++i) {
+            base = static_cast<std::uint32_t>(static_cast<std::int64_t>(base) +
+                                              static_cast<std::int64_t>(zigzag_decode_u32(input[i])));
+            output[i] = base;
+        }
+    }
+
+
+#   if defined(__SSE2__)
+
+    inline void decode_delta_zig_zag_i32_sse2(
+            const std::uint32_t* input,
+            std::int32_t* output,
+            std::size_t size,
+            std::int32_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+
+        std::size_t i = 0;
+        std::int32_t base = static_cast<std::int32_t>(initial_value + zigzag_decode_u32(input[0]));
+        output[0] = base;
+        i = 1;
+
+        // align input/output for aligned loads/stores (16 bytes)
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = base;
+        }
+
+        constexpr std::size_t W = 4;
+        const std::size_t simd_end = i + ((size - i) / W) * W;
+
+        for (; i < simd_end; i += W) {
+            __m128i z = _mm_load_si128(reinterpret_cast<const __m128i*>(input + i));
+            __m128i d = zigzag_decode_u32_sse2(z);
+
+            // inclusive prefix sum in 128: [d0,d1,d2,d3] -> [d0, d0+d1, d0+d1+d2, d0+d1+d2+d3]
+            __m128i t = d;
+            t = _mm_add_epi32(t, _mm_slli_si128(t, 4));
+            t = _mm_add_epi32(t, _mm_slli_si128(t, 8));
+
+            __m128i b = _mm_set1_epi32(base);
+            __m128i outv = _mm_add_epi32(t, b);
+
+            _mm_store_si128(reinterpret_cast<__m128i*>(output + i), outv);
+
+            base = _mm_cvtsi128_si32(_mm_shuffle_epi32(outv, _MM_SHUFFLE(3,3,3,3)));
+        }
+
+        for (; i < size; ++i) {
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = base;
+        }
+    }
+
+    inline void decode_delta_zig_zag_u32_sse2(
+            const std::uint32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+
+        std::size_t i = 0;
+        std::uint32_t base_u = static_cast<std::uint32_t>(static_cast<std::int64_t>(initial_value) +
+                                                          static_cast<std::int64_t>(zigzag_decode_u32(input[0])));
+        output[0] = base_u;
+        i = 1;
+
+        // We keep base in int32 register (bitwise identical for add mod 2^32)
+        std::int32_t base = static_cast<std::int32_t>(base_u);
+
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = static_cast<std::uint32_t>(base);
+        }
+
+        constexpr std::size_t W = 4;
+        const std::size_t simd_end = i + ((size - i) / W) * W;
+
+        for (; i < simd_end; i += W) {
+            __m128i z = _mm_load_si128(reinterpret_cast<const __m128i*>(input + i));
+            __m128i d = zigzag_decode_u32_sse2(z);
+
+            __m128i t = d;
+            t = _mm_add_epi32(t, _mm_slli_si128(t, 4));
+            t = _mm_add_epi32(t, _mm_slli_si128(t, 8));
+
+            __m128i b = _mm_set1_epi32(base);
+            __m128i outv = _mm_add_epi32(t, b);
+
+            _mm_store_si128(reinterpret_cast<__m128i*>(output + i), outv);
+
+            base = _mm_cvtsi128_si32(_mm_shuffle_epi32(outv, _MM_SHUFFLE(3,3,3,3)));
+        }
+
+        for (; i < size; ++i) {
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = static_cast<std::uint32_t>(base);
+        }
+    }
+#   endif
+
+#   if defined(__AVX2__)
+    
+    inline void decode_delta_zig_zag_i32_avx2(
+            const std::uint32_t* input,
+            std::int32_t* output,
+            std::size_t size,
+            std::int32_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+
+        std::size_t i = 1;
+        std::int32_t base = static_cast<std::int32_t>(initial_value + zigzag_decode_u32(input[0]));
+        output[0] = base;
+
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = base;
+        }
+
+        constexpr std::size_t W = 8;
+        const std::size_t simd_end = i + ((size - i) / W) * W;
+
+        for (; i < simd_end; i += W) {
+            __m256i z = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
+            __m256i d = zigzag_decode_u32_avx2(z);
+
+            // prefix within each 128 lane (4 elems)
+            __m256i t = d;
+            t = _mm256_add_epi32(t, _mm256_slli_si256(t, 4));
+            t = _mm256_add_epi32(t, _mm256_slli_si256(t, 8));
+
+            // cross-lane carry (low lane sum to high lane)
+            __m128i lo = _mm256_castsi256_si128(t);
+            int lo_sum = _mm_cvtsi128_si32(_mm_shuffle_epi32(lo, _MM_SHUFFLE(3,3,3,3)));
+            __m128i hi = _mm256_extracti128_si256(t, 1);
+            hi = _mm_add_epi32(hi, _mm_set1_epi32(lo_sum));
+            __m256i scan = _mm256_inserti128_si256(_mm256_castsi128_si256(lo), hi, 1);
+
+            __m256i b = _mm256_set1_epi32(base);
+            __m256i outv = _mm256_add_epi32(scan, b);
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), outv);
+
+            __m128i out_hi = _mm256_extracti128_si256(outv, 1);
+            base = _mm_cvtsi128_si32(_mm_shuffle_epi32(out_hi, _MM_SHUFFLE(3,3,3,3)));
+        }
+
+        for (; i < size; ++i) {
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = base;
+        }
+    }
+
+    inline void decode_delta_zig_zag_u32_avx2(
+            const std::uint32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+
+        std::size_t i = 1;
+        std::uint32_t base_u = static_cast<std::uint32_t>(static_cast<std::int64_t>(initial_value) +
+                                                          static_cast<std::int64_t>(zigzag_decode_u32(input[0])));
+        output[0] = base_u;
+        std::int32_t base = static_cast<std::int32_t>(base_u);
+
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = static_cast<std::uint32_t>(base);
+        }
+
+        constexpr std::size_t W = 8;
+        const std::size_t simd_end = i + ((size - i) / W) * W;
+
+        for (; i < simd_end; i += W) {
+            __m256i z = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
+            __m256i d = zigzag_decode_u32_avx2(z);
+
+            __m256i t = d;
+            t = _mm256_add_epi32(t, _mm256_slli_si256(t, 4));
+            t = _mm256_add_epi32(t, _mm256_slli_si256(t, 8));
+
+            __m128i lo = _mm256_castsi256_si128(t);
+            int lo_sum = _mm_cvtsi128_si32(_mm_shuffle_epi32(lo, _MM_SHUFFLE(3,3,3,3)));
+            __m128i hi = _mm256_extracti128_si256(t, 1);
+            hi = _mm_add_epi32(hi, _mm_set1_epi32(lo_sum));
+            __m256i scan = _mm256_inserti128_si256(_mm256_castsi128_si256(lo), hi, 1);
+
+            __m256i b = _mm256_set1_epi32(base);
+            __m256i outv = _mm256_add_epi32(scan, b);
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), outv);
+
+            __m128i out_hi = _mm256_extracti128_si256(outv, 1);
+            base = _mm_cvtsi128_si32(_mm_shuffle_epi32(out_hi, _MM_SHUFFLE(3,3,3,3)));
+        }
+
+        for (; i < size; ++i) {
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32(input[i]));
+            output[i] = static_cast<std::uint32_t>(base);
+        }
+    }
+#   endif
+
+#   if defined(__AVX512F__)
+    inline void decode_delta_zig_zag_i32_avx512(
+            const std::uint32_t* input,
+            std::int32_t* output,
+            std::size_t size,
+            std::int32_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+
+        std::size_t i = 0;
+        std::int32_t base = static_cast<std::int32_t>(initial_value + zigzag_decode_u32_scalar(input[0]));
+        output[0] = base;
+        i = 1;
+
+        constexpr std::size_t align = 64;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32_scalar(input[i]));
+            output[i] = base;
+        }
+
+        constexpr std::size_t W = 16;
+        const std::size_t simd_end = i + ((size - i) / W) * W;
+
+        alignas(64) std::int32_t d[W];
+        alignas(64) std::int32_t prefix[W];
+
+        for (; i < simd_end; i += W) {
+            __m512i z = _mm512_load_si512(reinterpret_cast<const void*>(input + i));
+            __m512i dv = zigzag_decode_u32_avx512(z);
+            _mm512_store_si512(reinterpret_cast<void*>(d), dv);
+
+            std::int32_t run = 0;
+            for (std::size_t k = 0; k < W; ++k) {
+                run = static_cast<std::int32_t>(run + d[k]);
+                prefix[k] = run;
+            }
+            for (std::size_t k = 0; k < W; ++k) {
+                output[i + k] = static_cast<std::int32_t>(base + prefix[k]);
+            }
+            base = output[i + (W - 1)];
+        }
+
+        for (; i < size; ++i) {
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32_scalar(input[i]));
+            output[i] = base;
+        }
+    }
+
+    inline void decode_delta_zig_zag_u32_avx512(
+            const std::uint32_t* input,
+            std::uint32_t* output,
+            std::size_t size,
+            std::uint32_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+
+        std::size_t i = 0;
+        std::uint32_t base_u = static_cast<std::uint32_t>(static_cast<std::int64_t>(initial_value) +
+                                                          static_cast<std::int64_t>(zigzag_decode_u32_scalar(input[0])));
+        output[0] = base_u;
+        i = 1;
+        std::int32_t base = static_cast<std::int32_t>(base_u);
+
+        constexpr std::size_t align = 64;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32_scalar(input[i]));
+            output[i] = static_cast<std::uint32_t>(base);
+        }
+
+        constexpr std::size_t W = 16;
+        const std::size_t simd_end = i + ((size - i) / W) * W;
+
+        alignas(64) std::int32_t d[W];
+        alignas(64) std::int32_t prefix[W];
+
+        for (; i < simd_end; i += W) {
+            __m512i z = _mm512_load_si512(reinterpret_cast<const void*>(input + i));
+            __m512i dv = zigzag_decode_u32_avx512(z);
+            _mm512_store_si512(reinterpret_cast<void*>(d), dv);
+
+            std::int32_t run = 0;
+            for (std::size_t k = 0; k < W; ++k) {
+                run = static_cast<std::int32_t>(run + d[k]);
+                prefix[k] = run;
+            }
+            for (std::size_t k = 0; k < W; ++k) {
+                output[i + k] = static_cast<std::uint32_t>(static_cast<std::int32_t>(base + prefix[k]));
+            }
+            base = static_cast<std::int32_t>(output[i + (W - 1)]);
+        }
+
+        for (; i < size; ++i) {
+            base = static_cast<std::int32_t>(base + zigzag_decode_u32_scalar(input[i]));
+            output[i] = static_cast<std::uint32_t>(base);
+        }
+    }
+#   endif
+
 
     /// \brief Performs delta and Zig-Zag decoding in a single pass.
     /// \param input Pointer to the encoded array.
     /// \param output Pointer to the decoded array.
     /// \param size Number of elements in the array.
     /// \param initial_value Initial reference value for reconstruction.
-    void decode_delta_zig_zag_u32(
+    inline void decode_delta_zig_zag_i32(
             const std::uint32_t* input,
             std::int32_t* output,
             std::size_t size,
-            std::int32_t initial_value) {
-        if (size == 0) return;
-        std::int32_t zigzag = (input[0] >> 1) ^ -(input[0] & 1);
-        output[0] = initial_value + zigzag;
-        for (std::size_t i = 1; i < size; ++i) {
-            zigzag = (input[i] >> 1) ^ -(input[i] & 1);
-            output[i] = output[i - 1] + zigzag;
-        }
+            std::int32_t initial_value
+        ) noexcept {
+#       if defined(__AVX512F__)
+        decode_delta_zig_zag_i32_avx512(input, output, size, initial_value);
+#       elif defined(__AVX2__)
+        decode_delta_zig_zag_i32_avx2(input, output, size, initial_value);
+#       elif defined(__SSE2__)
+        decode_delta_zig_zag_i32_sse2(input, output, size, initial_value);
+#       else
+        decode_delta_zig_zag_i32_scalar(input, output, size, initial_value);
+#       endif
     }
 
-    void encode_delta_zig_zag_u32(
+    inline void decode_delta_zig_zag_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
             std::size_t size,
-            std::uint32_t initial_value) {
-        constexpr std::int64_t min_val = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
-        constexpr std::int64_t max_val = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
-        std::int64_t raw_delta;
-        std::int32_t delta;
-        for (std::size_t i = 0; i < size; ++i) {
-            raw_delta = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(initial_value);
-            if (raw_delta < min_val || raw_delta > max_val) throw std::overflow_error("Delta overflow: input[i] - initial_value > int32 range");
-            initial_value = input[i];
-            delta = static_cast<std::int32_t>(raw_delta);
-            output[i] = (delta << 1) ^ (delta >> 31);
-        }
-    }
-
-    void decode_delta_zig_zag_u32(
-            const std::uint32_t* input,
-            std::uint32_t* output,
-            std::size_t size,
-            std::uint32_t initial_value) {
-        if (size == 0) return;
-        std::int64_t zigzag = (input[0] >> 1) ^ -(input[0] & 1);
-        output[0] = static_cast<std::uint32_t>(static_cast<std::int64_t>(initial_value) + zigzag);
-        for (std::size_t i = 1; i < size; ++i) {
-            zigzag = (input[i] >> 1) ^ -(input[i] & 1);
-            output[i] = static_cast<std::uint32_t>(static_cast<std::int64_t>(output[i - 1]) + zigzag);
-        }
+            std::uint32_t initial_value
+        ) noexcept {
+#       if defined(__AVX512F__)
+        decode_delta_zig_zag_u32_avx512(input, output, size, initial_value);
+#       elif defined(__AVX2__)
+        decode_delta_zig_zag_u32_avx2(input, output, size, initial_value);
+#       elif defined(__SSE2__)
+        decode_delta_zig_zag_u32_sse2(input, output, size, initial_value);
+#       else
+        decode_delta_zig_zag_u32_scalar(input, output, size, initial_value);
+#       endif
     }
 
 //------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+    inline void encode_delta_zig_zag_i64_scalar(
+            const std::int64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
+        std::int64_t cur;
+        for (std::size_t i = 0; i < size; ++i) {
+            cur = input[i];
+            output[i] = zigzag_encode_u64(cur - initial_value);
+            initial_value = cur;
+        }
+    }
+    
+    inline void encode_delta_zig_zag_u64_scalar(
+            const std::uint64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::uint64_t initial_value
+        ) noexcept {
+        encode_delta_zig_zag_i64_scalar(static_cast<const std::int64_t*>(input), output, size, initial_value);
+    }
+    
+#   if defined(__SSE2__)
+
+    inline void encode_delta_zig_zag_i64_sse2(
+            const std::int64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
+        std::size_t i = 0;
+        std::int64_t prev = initial_value;
+
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            const std::int64_t cur = input[i];
+            const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
+                                                               static_cast<std::uint64_t>(prev));
+            output[i] = zigzag_encode_u64_scalar(d);
+            prev = cur;
+        }
+
+        constexpr std::size_t W = 2;
+        const std::size_t end = i + ((size - i) / W) * W;
+
+        for (; i < end; i += W) {
+            __m128i cur = _mm_load_si128(reinterpret_cast<const __m128i*>(input + i));
+
+            __m128i prevv = _mm_shuffle_epi32(cur, _MM_SHUFFLE(1,0,3,2));
+            prevv = _mm_unpacklo_epi64(_mm_set1_epi64x(prev), prevv);
+
+            __m128i d = _mm_sub_epi64(cur, prevv);
+            __m128i zz = zigzag_encode_u64_sse2(d);
+
+            _mm_store_si128(reinterpret_cast<__m128i*>(output + i), zz);
+
+            prev = _mm_cvtsi128_si64(_mm_srli_si128(cur, 8));
+        }
+
+        for (; i < size; ++i) {
+            const std::int64_t cur = input[i];
+            const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
+                                                               static_cast<std::uint64_t>(prev));
+            output[i] = zigzag_encode_u64_scalar(d);
+            prev = cur;
+        }
+    }
+    
+    inline void encode_delta_zig_zag_u64_sse2(
+            const std::uint64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::uint64_t initial_value
+        ) noexcept {
+        encode_delta_zig_zag_i64_sse2(static_cast<const std::int64_t*>(input), output, size, initial_value);
+    }
+#   endif
+
+
+#   if defined(__AVX2__)
+
+    inline void encode_delta_zig_zag_i64_avx2(
+            const std::int64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
+        std::size_t i = 0;
+        std::int64_t prev = initial_value;
+
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            const std::int64_t cur = input[i];
+            const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
+                                                               static_cast<std::uint64_t>(prev));
+            output[i] = zigzag_encode_u64_scalar(d);
+            prev = cur;
+        }
+
+        constexpr std::size_t W = 4;
+        const std::size_t end = i + ((size - i) / W) * W;
+
+        for (; i < end; i += W) {
+            __m256i cur = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
+
+            __m256i sh = _mm256_permute4x64_epi64(cur, _MM_SHUFFLE(2,1,0,3)); // [cur3,cur0,cur1,cur2]
+            __m256i prevv = _mm256_blend_epi32(_mm256_set1_epi64x(prev), sh, 0xFC);
+
+            __m256i d = _mm256_sub_epi64(cur, prevv);
+            __m256i zz = zigzag_encode_u64_avx2(d);
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
+
+            prev = static_cast<std::int64_t>(_mm256_extract_epi64(cur, 3));
+        }
+
+        for (; i < size; ++i) {
+            const std::int64_t cur = input[i];
+            const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
+                                                               static_cast<std::uint64_t>(prev));
+            output[i] = zigzag_encode_u64_scalar(d);
+            prev = cur;
+        }
+    }
+
+    inline void encode_delta_zig_zag_u64_avx2(
+            const std::uint64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::uint64_t initial_value
+        ) noexcept {
+        encode_delta_zig_zag_i64_avx2(static_cast<const std::int64_t*>(input), output, size, initial_value);
+    }
+#   endif
+
+#if defined(__AVX512F__)
+    
+    inline void encode_delta_zig_zag_i64_avx512(
+            const std::int64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
+        std::size_t i = 0;
+        std::int64_t prev = initial_value;
+
+        constexpr std::size_t align = 64;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            const std::int64_t cur = input[i];
+            const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
+                                                               static_cast<std::uint64_t>(prev));
+            output[i] = zigzag_encode_u64_scalar(d);
+            prev = cur;
+        }
+
+        constexpr std::size_t W = 8;
+        const std::size_t end = i + ((size - i) / W) * W;
+
+        alignas(64) std::int64_t cur_lane[W];
+        alignas(64) std::int64_t d_lane[W];
+
+        for (; i < end; i += W) {
+            __m512i cur = _mm512_load_si512(reinterpret_cast<const void*>(input + i));
+            _mm512_store_si512(reinterpret_cast<void*>(cur_lane), cur);
+
+            std::int64_t p = prev;
+            for (std::size_t k = 0; k < W; ++k) {
+                const std::int64_t c = cur_lane[k];
+                d_lane[k] = static_cast<std::int64_t>(static_cast<std::uint64_t>(c) -
+                                                      static_cast<std::uint64_t>(p));
+                p = c;
+            }
+            prev = cur_lane[W - 1];
+
+            __m512i d = _mm512_load_si512(reinterpret_cast<const void*>(d_lane));
+            __m512i zz = zigzag_encode_u64_avx512(d);
+            _mm512_store_si512(reinterpret_cast<void*>(output + i), zz);
+        }
+
+        for (; i < size; ++i) {
+            const std::int64_t cur = input[i];
+            const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
+                                                               static_cast<std::uint64_t>(prev));
+            output[i] = zigzag_encode_u64_scalar(d);
+            prev = cur;
+        }
+    }
+    
+    inline void encode_delta_zig_zag_u64_avx512(
+            const std::uint64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::uint64_t initial_value
+        ) noexcept {
+        encode_delta_zig_zag_i64_avx512(static_cast<const std::int64_t*>(input), output, size, initial_value);
+    }
+#   endif
+
 
     /// \brief Performs delta and Zig-Zag encoding in a single pass (64-bit).
     /// \param input Pointer to the input array (int64_t).
     /// \param output Pointer to the output array (uint64_t).
     /// \param size Number of elements in the array.
     /// \param initial_value The reference value for delta computation (64-bit).
-    void encode_delta_zig_zag_u64(
-            const std::int64_t* input,
+    inline void encode_delta_zig_zag_u64(
+            const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
-            std::int64_t initial_value) {
-        if (size == 0) return;
-        std::int64_t prev = initial_value, delta_value;
-
-#       if defined(__SSE2__)
-        constexpr std::size_t simd_width = 2; // SSE2 обрабатывает 2 int64 за раз
-        const std::size_t aligned_size = size - ((size - 1) % simd_width);
-        __m128i delta;
-
-        if (reinterpret_cast<std::uintptr_t>(input) % 16 == 0 &&
-            reinterpret_cast<std::uintptr_t>(output) % 16 == 0) {
-            if (aligned_size > 1) {
-                for (std::size_t i = 0; i < simd_width; ++i) {
-                    delta_value = input[i] - prev;
-                    output[i] = (delta_value << 1) ^ (delta_value >> 63);
-                    prev = input[i];
-                }
-            }
-            for (std::size_t i = simd_width; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi64(
-                    _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i - 1])));
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(
-                        _mm_slli_epi64(delta, 1),
-                        _mm_or_si128(_mm_srli_epi64(delta, 63), _mm_slli_epi64(_mm_srai_epi32(_mm_shuffle_epi32(delta, _MM_SHUFFLE(3, 3, 1, 1)), 31), 1))
-                    ));
-            }
-        } else {
-            for (std::size_t i = 1; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi64(
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i - 1])));
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(
-                        _mm_slli_epi64(delta, 1),
-                        _mm_or_si128(_mm_srli_epi64(delta, 63), _mm_slli_epi64(_mm_srai_epi32(_mm_shuffle_epi32(delta, _MM_SHUFFLE(3, 3, 1, 1)), 31), 1))
-                    ));
-            }
-        }
-
-        delta_value = input[0] - initial_value;
-        output[0] = (delta_value << 1) ^ (delta_value >> 63);
-        prev = aligned_size > 0 ? input[aligned_size - 1] : initial_value;
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            delta_value = input[i] - prev;
-            output[i] = (delta_value << 1) ^ (delta_value >> 63);
-            prev = input[i];
-        }
+            std::uint64_t initial_value) noexcept {
+#       if defined(__AVX512F__)
+        encode_delta_zig_zag_u64_avx512(input, output, size, initial_value);
+#       elif defined(__AVX2__)
+        encode_delta_zig_zag_u64_avx2(input, output, size, initial_value);
+#       elif defined(__SSE2__)
+        encode_delta_zig_zag_u64_sse2(input, output, size, initial_value);
 #       else
-        for (std::size_t i = 0; i < size; ++i) {
-            delta_value = input[i] - prev;
-            output[i] = (delta_value << 1) ^ (delta_value >> 63);
-            prev = input[i];
-        }
+        encode_delta_zig_zag_u64_scalar(input, output, size, initial_value);
 #       endif
     }
 
-    /// \brief Performs delta and Zig-Zag decoding in a single pass for 64-bit integers.
-    /// \param input Pointer to the encoded array.
-    /// \param output Pointer to the decoded array.
-    /// \param size Number of elements in the array.
-    /// \param initial_value Initial reference value for reconstruction.
-    void decode_delta_zig_zag_u64(
+    inline void encode_delta_zig_zag_i64(
+        const std::int64_t* input,
+        std::uint64_t* output,
+        std::size_t size,
+        std::int64_t initial_value
+    ) noexcept {
+#       if defined(__AVX512F__)
+        encode_delta_zig_zag_i64_avx512(input, output, size, initial_value);
+#       elif defined(__AVX2__)
+        encode_delta_zig_zag_i64_avx2(input, output, size, initial_value);
+#       elif defined(__SSE2__)
+        encode_delta_zig_zag_i64_sse2(input, output, size, initial_value);
+#       else
+        encode_delta_zig_zag_i64_scalar(input, output, size, initial_value);
+#       endif
+    }
+    
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+    inline void decode_delta_zig_zag_i64_scalar(
             const std::uint64_t* input,
             std::int64_t* output,
             std::size_t size,
-            std::int64_t initial_value) {
+            std::int64_t initial_value
+        ) noexcept {
         if (size == 0) return;
-        std::int64_t zigzag = (input[0] >> 1) ^ -(input[0] & 1);
-        output[0] = initial_value + zigzag;
+        std::int64_t base = initial_value + zigzag_decode_u64(input[0]);
+        );
+        output[0] = base;
         for (std::size_t i = 1; i < size; ++i) {
-            zigzag = (input[i] >> 1) ^ -(input[i] & 1);
-            output[i] = output[i - 1] + zigzag;
+            base += zigzag_decode_u64(input[i]);
+            output[i] = base;
         }
     }
-
-    void encode_delta_zig_zag_u64(
+    
+    inline void decode_delta_zig_zag_u64_scalar(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
-            std::uint64_t initial_value) {
-        std::int64_t delta;
-        for (std::size_t i = 0; i < size; ++i) {
-            delta = static_cast<std::int64_t>(input[i]) - static_cast<std::int64_t>(initial_value);
-            initial_value = input[i];
-            output[i] = (delta << 1) ^ (delta >> 63);
+            std::int64_t initial_value
+        ) noexcept {
+        decode_delta_zig_zag_i64_scalar(input, static_cast<const std::int64_t*>(output), size, initial_value);
+    }
+
+#   if defined(__SSE2__)
+    inline void decode_delta_zig_zag_i64_sse2(
+            const std::uint64_t* input,
+            std::int64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
+        if (size == 0) return;
+        std::size_t i = 1;
+        std::int64_t base = initial_value + zigzag_decode_u64(input[0]);
+        output[0] = base;
+        constexpr std::size_t align = 16;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base += zigzag_decode_u64(input[i]);
+            output[i] = base;
+        }
+
+        constexpr std::size_t W = 2;
+        const std::size_t end = i + ((size - i) / W) * W;
+
+        for (; i < end; i += W) {
+            __m128i z = _mm_load_si128(reinterpret_cast<const __m128i*>(input + i));
+            __m128i d = zigzag_decode_u64_sse2(z);
+
+            // prefix within 128: [a,b] -> [a, a+b]
+            __m128i t = d;
+            t = _mm_add_epi64(t, _mm_slli_si128(t, 8));
+
+            __m128i b = _mm_set1_epi64x(base);
+            __m128i outv = _mm_add_epi64(t, b);
+
+            _mm_store_si128(reinterpret_cast<__m128i*>(output + i), outv);
+
+            base = _mm_cvtsi128_si64(_mm_srli_si128(outv, 8));
+        }
+
+        for (; i < size; ++i) {
+            base += zigzag_decode_u64(input[i]);
+            output[i] = base;
         }
     }
 
-    void decode_delta_zig_zag_u64(
+    inline void decode_delta_zig_zag_u64_sse2(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
-            std::uint64_t initial_value) {
+            std::int64_t initial_value
+        ) noexcept {
+        decode_delta_zig_zag_i64_sse2(input, static_cast<const std::int64_t*>(output), size, initial_value);
+    }
+#   endif
+
+#if defined(__AVX2__)
+    
+    inline void decode_delta_zig_zag_i64_avx2(
+            const std::uint64_t* input,
+            std::int64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
         if (size == 0) return;
-        std::int64_t zigzag = (input[0] >> 1) ^ -(input[0] & 1);
-        output[0] = static_cast<std::uint64_t>(static_cast<std::int64_t>(initial_value) + zigzag);
-        for (std::size_t i = 1; i < size; ++i) {
-            zigzag = (input[i] >> 1) ^ -(input[i] & 1);
-            output[i] = static_cast<std::uint64_t>(static_cast<int64_t>(output[i - 1]) + zigzag);
+
+        std::size_t i = 1;
+        std::int64_t base = initial_value + zigzag_decode_u64(input[0]);
+        output[0] = base;
+
+        constexpr std::size_t align = 32;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base += zigzag_decode_u64(input[i]);
+            output[i] = base;
+        }
+
+        constexpr std::size_t W = 4;
+        const std::size_t end = i + ((size - i) / W) * W;
+
+        for (; i < end; i += W) {
+            __m256i z = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
+            __m256i d = zigzag_decode_u64_avx2(z);
+
+            // prefix inside each 128 lane (2 elems)
+            __m256i t = d;
+            t = _mm256_add_epi64(t, _mm256_slli_si256(t, 8)); // [a,a+b] | [c,c+d]
+
+            // carry low lane last into high lane
+            const __m128i low = _mm256_castsi256_si128(t);
+            const std::int64_t low_last = _mm_cvtsi128_si64(_mm_srli_si128(low, 8));
+            const __m256i add_hi = _mm256_setr_epi64x(0, 0, low_last, low_last);
+            t = _mm256_add_epi64(t, add_hi); // [a, a+b, a+b+c, a+b+c+d]
+
+            __m256i b = _mm256_set1_epi64x(base);
+            __m256i outv = _mm256_add_epi64(t, b);
+
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), outv);
+
+            base = static_cast<std::int64_t>(_mm256_extract_epi64(outv, 3));
+        }
+
+        for (; i < size; ++i) {
+            base += zigzag_decode_u64(input[i]);
+            output[i] = base;
         }
     }
 
-//------------------------------------------------------------------------------
+    inline void decode_delta_zig_zag_u64_avx2(
+            const std::uint64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
+        decode_delta_zig_zag_i64_avx2(input, static_cast<const std::int64_t*>(output), size, initial_value);
+    }
+#   endif
 
-    /// \brief Performs delta and Zig-Zag encoding in a single pass.
-    /// \param input Pointer to the input array.
-    /// \param output Pointer to the output array.
-    /// \param size Number of elements in the array.
-    /// \param initial_value Initial reference value for delta computation.
-    void encode_delta_zig_zag_chunked8_u32(
-            const std::int32_t* input, 
-            std::uint32_t* output, 
-            std::size_t size, 
-            std::int32_t initial_value) {
+#   if defined(__AVX512F__)
+
+    inline void decode_delta_zig_zag_i64_avx512(
+            const std::uint64_t* input,
+            std::int64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
         if (size == 0) return;
 
-        constexpr std::size_t simd_width = 8;
-        const std::size_t aligned_size = size - (size % simd_width);
+        std::size_t i = 1;
+        std::int64_t base = initial_value + zigzag_decode_u64(input[0]);
+        output[0] = base;
 
-#       if defined(__SSE2__)
-        constexpr std::size_t sse_simd_width = 4;
+        constexpr std::size_t align = 64;
+        for (; i < size; ++i) {
+            if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
+                (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
+            base = zigzag_decode_u64(input[i]);
+            output[i] = base;
+        }
 
-        __m128i base = _mm_set1_epi32(initial_value);
-        __m128i delta;
+        constexpr std::size_t W = 8;
+        const std::size_t end = i + ((size - i) / W) * W;
 
-        if (reinterpret_cast<std::uintptr_t>(input) % 16 == 0 &&
-            reinterpret_cast<std::uintptr_t>(output) % 16 == 0) {
-            for (size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi32(
-                    _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    base);
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(_mm_slli_epi32(delta, 1), _mm_srai_epi32(delta, 31)));
+        alignas(64) std::int64_t d[W];
+        alignas(64) std::int64_t prefix[W];
 
-                delta = _mm_sub_epi32(
-                    _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i + sse_simd_width])),
-                    base);
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i + sse_simd_width]),
-                    _mm_xor_si128(_mm_slli_epi32(delta, 1), _mm_srai_epi32(delta, 31)));
+        for (; i < end; i += W) {
+            __m512i z = _mm512_load_si512(reinterpret_cast<const void*>(input + i));
+            __m512i dv = zigzag_decode_u64_avx512(z);
+            _mm512_store_si512(reinterpret_cast<void*>(d), dv);
 
-                base = _mm_set1_epi32(input[i + simd_width - 1]);
+            std::int64_t run = 0;
+            for (std::size_t k = 0; k < W; ++k) {
+                run += d[k];
+                prefix[k] = run;
             }
-        } else {
-            for (size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi32(
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    base);
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(_mm_slli_epi32(delta, 1), _mm_srai_epi32(delta, 31)));
-
-                delta = _mm_sub_epi32(
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i + sse_simd_width])),
-                    base);
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i + sse_simd_width]),
-                    _mm_xor_si128(_mm_slli_epi32(delta, 1), _mm_srai_epi32(delta, 31)));
-
-                base = _mm_set1_epi32(input[i + simd_width - 1]);
+            for (std::size_t k = 0; k < W; ++k) {
+                output[i + k] = base + prefix[k];
             }
+            base = output[i + (W - 1)];
         }
 
-        if (aligned_size > 0) {
-            initial_value = input[aligned_size - 1];
+        for (; i < size; ++i) {
+            base += zigzag_decode_u64(input[i]);
+            output[i] = base;
         }
-
-        std::int32_t delta_value;
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            delta_value = input[i] - initial_value;
-            output[i] = (delta_value << 1) ^ (delta_value >> 31);
-        }
-#       else
-        std::int32_t delta_value;
-        for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-            std::size_t j_max = i + simd_width;
-            for (std::size_t j = i; j < j_max; ++j) {
-                delta_value = input[j] - initial_value;
-                output[j] = (delta_value << 1) ^ (delta_value >> 31);
-            }
-            initial_value = input[j_max - 1];
-        }
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            delta_value = input[i] - initial_value;
-            output[i] = (delta_value << 1) ^ (delta_value >> 31);
-        }
-#       endif
+    }
+    
+    inline void decode_delta_zig_zag_u64_avx512(
+            const std::uint64_t* input,
+            std::uint64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
+        decode_delta_zig_zag_i64_avx512(input, static_cast<const std::int64_t*>(output), size, initial_value);
     }
 
-    /// \brief Performs delta and Zig-Zag decoding in a single pass.
-    /// \param input Pointer to the encoded array.
-    /// \param output Pointer to the decoded array.
-    /// \param size Number of elements in the array.
-    /// \param initial_value Initial reference value for reconstruction.
-    void decode_delta_zig_zag_chunked8_u32(
-            const std::uint32_t* input, 
-            std::int32_t* output, 
-            std::size_t size, 
-            std::int32_t initial_value) {
-        if (size == 0) return;
-
-        constexpr std::size_t simd_width = 8;
-        const std::size_t aligned_size = size - (size % simd_width);
-
-#       if defined(__SSE2__)
-        constexpr std::size_t sse_simd_width = 4;
-
-        __m128i base = _mm_set1_epi32(initial_value);
-        __m128i delta;
-
-        const __m128i one = _mm_set1_epi32(1);
-        const __m128i zero = _mm_setzero_si128();
-
-        if (reinterpret_cast<std::uintptr_t>(input) % 16 == 0 &&
-            reinterpret_cast<std::uintptr_t>(output) % 16 == 0) {
-            for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i]));
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_add_epi32(_mm_xor_si128(_mm_srli_epi32(delta, 1),
-                        _mm_sub_epi32(zero, _mm_and_si128(delta, one))), base));
-
-                delta = _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i + sse_simd_width]));
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i + sse_simd_width]),
-                    _mm_add_epi32(_mm_xor_si128(_mm_srli_epi32(delta, 1),
-                        _mm_sub_epi32(zero, _mm_and_si128(delta, one))), base));
-
-                base = _mm_set1_epi32(output[i + simd_width - 1]);
-            }
-        } else {
-            for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i]));
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_add_epi32(_mm_xor_si128(_mm_srli_epi32(delta, 1),
-                        _mm_sub_epi32(zero, _mm_and_si128(delta, one))), base));
-
-                delta = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i + sse_simd_width]));
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i + sse_simd_width]),
-                    _mm_add_epi32(_mm_xor_si128(_mm_srli_epi32(delta, 1),
-                        _mm_sub_epi32(zero, _mm_and_si128(delta, one))), base));
-
-                base = _mm_set1_epi32(output[i + simd_width - 1]);
-            }
-        }
-
-        if (aligned_size > 0) {
-            initial_value = output[aligned_size - 1];
-        }
-
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            output[i] = initial_value + ((input[i] >> 1) ^ -(input[i] & 1));
-        }
-#       else
-        for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-            std::size_t j_max = i + simd_width;
-            for (std::size_t j = i; j < j_max; ++j) {
-                output[j] = initial_value + ((input[j] >> 1) ^ -(input[j] & 1));
-                initial_value = output[j];
-            }
-        }
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            output[i] = initial_value + ((input[i] >> 1) ^ -(input[i] & 1));
-            initial_value = output[i];
-        }
-#       endif
-    }
-
-//------------------------------------------------------------------------------
-
-    /// \brief Performs delta and Zig-Zag encoding in a single pass.
-    /// \param input Pointer to the input array.
-    /// \param output Pointer to the output array.
-    /// \param size Number of elements in the array.
-    /// \param initial_value Initial reference value for delta computation.
-    void encode_delta_zig_zag_chunked4_u32(
-            const std::int32_t* input, 
-            std::uint32_t* output, 
-            std::size_t size, 
-            std::int32_t initial_value) {
-        if (size == 0) return;
-
-        constexpr std::size_t simd_width = 4;
-        const std::size_t aligned_size = size - (size % simd_width);
-
-#       if defined(__SSE2__)
-        __m128i base = _mm_set1_epi32(initial_value);
-        __m128i delta;
-
-        if (reinterpret_cast<std::uintptr_t>(input) % 16 == 0 &&
-            reinterpret_cast<std::uintptr_t>(output) % 16 == 0) {
-            for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi32(
-                    _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    base);
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(_mm_slli_epi32(delta, 1), _mm_srai_epi32(delta, 31)));
-
-                base = _mm_set1_epi32(input[i + simd_width - 1]);
-            }
-        } else {
-            for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi32(
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    base);
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(_mm_slli_epi32(delta, 1), _mm_srai_epi32(delta, 31)));
-
-                base = _mm_set1_epi32(input[i + simd_width - 1]);
-            }
-        }
-
-        if (aligned_size > 0) {
-            initial_value = input[aligned_size - 1];
-        }
-
-        std::int32_t delta_value;
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            delta_value = input[i] - initial_value;
-            output[i] = (delta_value << 1) ^ (delta_value >> 31);
-        }
-#       else
-        std::int32_t delta_value;
-        for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-            std::size_t j_max = i + simd_width;
-            for (std::size_t j = i; j < j_max; ++j) {
-                delta_value = input[j] - initial_value;
-                output[j] = (delta_value << 1) ^ (delta_value >> 31);
-            }
-            initial_value = input[j_max - 1];
-        }
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            delta_value = input[i] - initial_value;
-            output[i] = (delta_value << 1) ^ (delta_value >> 31);
-        }
-#       endif
-    }
-
-    /// \brief Performs delta and Zig-Zag decoding in a single pass.
-    /// \param input Pointer to the encoded array.
-    /// \param output Pointer to the decoded array.
-    /// \param size Number of elements in the array.
-    /// \param initial_value Initial reference value for reconstruction.
-    void decode_delta_zig_zag_chunked4_u32(
-            const std::uint32_t* input, 
-            std::int32_t* output, 
-            std::size_t size, 
-            std::int32_t initial_value) {
-        if (size == 0) return;
-
-        constexpr size_t simd_width = 4;
-        const size_t aligned_size = size - (size % simd_width);
-
-#       if defined(__SSE2__)
-        __m128i base = _mm_set1_epi32(initial_value);
-        __m128i delta;
-
-        const __m128i one = _mm_set1_epi32(1);
-        const __m128i zero = _mm_setzero_si128();
-
-        if (reinterpret_cast<std::uintptr_t>(input) % 16 == 0 &&
-            reinterpret_cast<std::uintptr_t>(output) % 16 == 0) {
-            for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i]));
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_add_epi32(_mm_xor_si128(_mm_srli_epi32(delta, 1),
-                        _mm_sub_epi32(zero, _mm_and_si128(delta, one))), base));
-
-                base = _mm_set1_epi32(output[i + simd_width - 1]);
-            }
-        } else {
-            for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i]));
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_add_epi32(_mm_xor_si128(_mm_srli_epi32(delta, 1),
-                        _mm_sub_epi32(zero, _mm_and_si128(delta, one))), base));
-
-                base = _mm_set1_epi32(output[i + simd_width - 1]);
-            }
-        }
-
-        if (aligned_size > 0) {
-            initial_value = output[aligned_size - 1];
-        }
-
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            output[i] = initial_value + ((input[i] >> 1) ^ -(input[i] & 1));
-        }
-#       else
-        for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-            std::size_t j_max = i + simd_width;
-            for (std::size_t j = i; j < j_max; ++j) {
-                output[j] = initial_value + ((input[j] >> 1) ^ -(input[j] & 1));
-                initial_value = output[j];
-            }
-        }
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            output[i] = initial_value + ((input[i] >> 1) ^ -(input[i] & 1));
-            initial_value = output[i];
-        }
-#       endif
-    }
-
-//------------------------------------------------------------------------------
-
-    /// \brief Performs delta and Zig-Zag encoding in a single pass for 64-bit integers.
-    /// \param input Pointer to the input array.
-    /// \param output Pointer to the output array.
-    /// \param size Number of elements in the array.
-    /// \param initial_value Initial reference value for delta computation.
-    void encode_delta_zig_zag_chunked4_u64(
-            const std::int64_t* input, 
-            std::uint64_t* output, 
-            std::size_t size, 
-            std::int64_t initial_value) {
-        if (size == 0) return;
-
-        constexpr std::size_t simd_width = 4;
-        const std::size_t aligned_size = size - (size % simd_width);
-
-#       if defined(__SSE2__)
-        constexpr std::size_t sse_simd_width = 2;
-
-        __m128i base = _mm_set1_epi64x(initial_value);
-        __m128i delta;
-
-        if (reinterpret_cast<std::uintptr_t>(input) % 16 == 0 &&
-            reinterpret_cast<std::uintptr_t>(output) % 16 == 0) {
-            for (size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi64(
-                    _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    base);
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(
-                        _mm_slli_epi64(delta, 1),
-                        _mm_or_si128(_mm_srli_epi64(delta, 63), _mm_slli_epi64(_mm_srai_epi32(_mm_shuffle_epi32(delta, _MM_SHUFFLE(3, 3, 1, 1)), 31), 1))));
-
-
-                delta = _mm_sub_epi64(
-                    _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i + sse_simd_width])),
-                    base);
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i + sse_simd_width]),
-                    _mm_xor_si128(
-                        _mm_slli_epi64(delta, 1),
-                        _mm_or_si128(_mm_srli_epi64(delta, 63), _mm_slli_epi64(_mm_srai_epi32(_mm_shuffle_epi32(delta, _MM_SHUFFLE(3, 3, 1, 1)), 31), 1))));
-
-                base = _mm_set1_epi64x(input[i + simd_width - 1]);
-            }
-        } else {
-            for (size_t i = 0; i < aligned_size; i += simd_width) {
-                delta = _mm_sub_epi64(
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i])),
-                    base);
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_xor_si128(
-                        _mm_slli_epi64(delta, 1),
-                        _mm_or_si128(_mm_srli_epi64(delta, 63), _mm_slli_epi64(_mm_srai_epi32(_mm_shuffle_epi32(delta, _MM_SHUFFLE(3, 3, 1, 1)), 31), 1))));
-
-
-                delta = _mm_sub_epi64(
-                    _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i + sse_simd_width])),
-                    base);
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i + sse_simd_width]),
-                    _mm_xor_si128(
-                        _mm_slli_epi64(delta, 1),
-                        _mm_or_si128(_mm_srli_epi64(delta, 63), _mm_slli_epi64(_mm_srai_epi32(_mm_shuffle_epi32(delta, _MM_SHUFFLE(3, 3, 1, 1)), 31), 1))));
-
-                base = _mm_set1_epi64x(input[i + simd_width - 1]);
-            }
-        }
-
-        if (aligned_size > 0) {
-            initial_value = input[aligned_size - 1];
-        }
-
-        std::int64_t delta_value;
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            delta_value = input[i] - initial_value;
-            output[i] = (delta_value << 1) ^ (delta_value >> 63);
-        }
-#       else
-        std::int64_t delta_value;
-        for (std::size_t i = 0; i < aligned_size; i += simd_width) {
-            std::size_t j_max = i + simd_width;
-            for (std::size_t j = i; j < j_max; ++j) {
-                delta_value = input[j] - initial_value;
-                output[j] = (delta_value << 1) ^ (delta_value >> 63);
-            }
-            initial_value = input[j_max - 1];
-        }
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            delta_value = input[i] - initial_value;
-            output[i] = (delta_value << 1) ^ (delta_value >> 63);
-        }
-#       endif
-    }
+#   endif
 
     /// \brief Performs delta and Zig-Zag decoding in a single pass for 64-bit integers.
     /// \param input Pointer to the encoded array.
     /// \param output Pointer to the decoded array.
     /// \param size Number of elements in the array.
     /// \param initial_value Initial reference value for reconstruction.
-    void decode_delta_zig_zag_chunked4_u64(
-            const std::uint64_t* input, 
-            std::int64_t* output, 
-            std::size_t size, 
-            std::int64_t initial_value) {
-        if (size == 0) return;
-
-        constexpr std::size_t chunk_width = 4;
-        const std::size_t aligned_size = size - (size % chunk_width);
-
-#       if defined(__SSE2__)
-        constexpr std::size_t sse_simd_width = 2;
-        __m128i base = _mm_set1_epi64x(initial_value);
-        __m128i delta;
-
-        const __m128i one = _mm_set1_epi64x(1);
-        const __m128i zero = _mm_setzero_si128();
-
-        if (reinterpret_cast<std::uintptr_t>(input) % 16 == 0 &&
-            reinterpret_cast<std::uintptr_t>(output) % 16 == 0) {
-            for (size_t i = 0; i < aligned_size; i += chunk_width) {
-                delta = _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i]));
-
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_add_epi64(_mm_xor_si128(
-                        _mm_srli_epi64(delta, 1),
-                        _mm_sub_epi64(zero, _mm_and_si128(delta, one))), base));
-
-                delta = _mm_load_si128(reinterpret_cast<const __m128i*>(&input[i + sse_simd_width]));
-
-                _mm_store_si128(reinterpret_cast<__m128i*>(&output[i + sse_simd_width]),
-                    _mm_add_epi64(_mm_xor_si128(
-                        _mm_srli_epi64(delta, 1),
-                        _mm_sub_epi64(zero, _mm_and_si128(delta, one))), base));
-
-                base = _mm_set1_epi64x(output[i + chunk_width - 1]);
-            }
-        } else {
-            for (std::size_t i = 0; i < aligned_size; i += chunk_width) {
-                delta = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i]));
-
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i]),
-                    _mm_add_epi64(_mm_xor_si128(
-                        _mm_srli_epi64(delta, 1),
-                        _mm_sub_epi64(zero, _mm_and_si128(delta, one))), base));
-
-                delta = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i + sse_simd_width]));
-
-                _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[i + sse_simd_width]),
-                    _mm_add_epi64(_mm_xor_si128(
-                        _mm_srli_epi64(delta, 1),
-                        _mm_sub_epi64(zero, _mm_and_si128(delta, one))), base));
-
-                base = _mm_set1_epi64x(output[i + chunk_width - 1]);
-            }
-        }
-
-        if (aligned_size > 0) {
-            initial_value = output[aligned_size - 1];
-        }
-
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            output[i] = initial_value + ((input[i] >> 1) ^ -(input[i] & 1));
-        }
+    inline void decode_delta_zig_zag_i64(
+            const std::uint64_t* input,
+            std::int64_t* output,
+            std::size_t size,
+            std::int64_t initial_value
+        ) noexcept {
+#       if defined(__AVX512F__)
+        decode_delta_zig_zag_i64_avx512(input, output, size, initial_value);
+#       elif defined(__AVX2__)
+        decode_delta_zig_zag_i64_avx2(input, output, size, initial_value);
+#       elif defined(__SSE2__)
+        decode_delta_zig_zag_i64_sse2(input, output, size, initial_value);
 #       else
-        for (std::size_t i = 0; i < aligned_size; i += chunk_width) {
-            std::size_t j_max = i + chunk_width;
-            for (std::size_t j = i; j < j_max; ++j) {
-                output[j] = initial_value + ((input[j] >> 1) ^ -(input[j] & 1));
-                initial_value = output[j];
-            }
-            initial_value = output[j_max - 1];
-        }
-        for (std::size_t i = aligned_size; i < size; ++i) {
-            output[i] = initial_value + ((input[i] >> 1) ^ -(input[i] & 1));
-            initial_value = output[i];
-        }
+        decode_delta_zig_zag_i64_scalar(input, output, size, initial_value);
+#       endif
+    }
+
+    inline void decode_delta_zig_zag_u64(
+        const std::uint64_t* input,
+        std::uint64_t* output,
+        std::size_t size,
+        std::uint64_t initial_value
+    ) noexcept {
+#       if defined(__AVX512F__)
+        decode_delta_zig_zag_u64_avx512(input, output, size, initial_value);
+#       elif defined(__AVX2__)
+        decode_delta_zig_zag_u64_avx2(input, output, size, initial_value);
+#       elif defined(__SSE2__)
+        decode_delta_zig_zag_u64_sse2(input, output, size, initial_value);
+#       else
+        decode_delta_zig_zag_u64_scalar(input, output, size, initial_value);
 #       endif
     }
 

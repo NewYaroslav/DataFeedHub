@@ -8,25 +8,26 @@
 namespace dfh::compression {
 
     /// \class TickCompressionContextV1
-    /// \brief Provides a shared context for intermediate data during tick compression and decompression.
+    /// \brief Shared context for intermediate buffers used by tick compression/decompression.
     ///
-    /// This class manages several buffers required for operations such as encoding,
-    /// decoding, and frequency analysis. Each buffer is allocated with alignment for
-    /// efficient SIMD operations.
+    /// Stores reusable buffers for stages such as delta encoding, ZigZag, frequency encoding,
+    /// and RLE processing.
+    ///
+    /// \note Buffers are allocated with 32-byte alignment to support AVX2 aligned loads/stores
+    /// (e.g., _mm256_load_si256/_mm256_store_si256) in hot loops.
     class TickCompressionContextV1 {
     public:
-        std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> deltas_u32; ///< Stores 32-bit delta values.
-        std::vector<uint64_t, dfh::utils::aligned_allocator<uint64_t, 16>> deltas_u64; ///< Stores 64-bit delta values.
-        std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> values_u32; ///< Stores unique 32-bit values extracted during frequency encoding.
-        std::vector<uint64_t, dfh::utils::aligned_allocator<uint64_t, 16>> values_u64; ///< Stores unique 64-bit values extracted during frequency encoding.
-        std::vector<uint32_t, dfh::utils::aligned_allocator<uint32_t, 16>> rle_u32;    ///< Stores 32-bit run-length encoded (RLE) values. For flagged Run-Length Encoding (Flagged RLE)
-        std::vector<uint8_t> processing_buffer; ///< General-purpose buffer for processing intermediate data.
+        std::vector<std::uint32_t, dfh::utils::aligned_allocator<std::uint32_t, 32>> deltas_u32; ///< Stores 32-byte aligned 32-bit delta values.
+        std::vector<std::uint64_t, dfh::utils::aligned_allocator<std::uint64_t, 32>> deltas_u64; ///< Stores 32-byte aligned 64-bit delta values.
+        std::vector<std::uint32_t, dfh::utils::aligned_allocator<std::uint32_t, 32>> values_u32; ///< Stores 32-byte aligned unique 32-bit values used in frequency encoding.
+        std::vector<std::uint64_t, dfh::utils::aligned_allocator<std::uint64_t, 32>> values_u64; ///< Stores 32-byte aligned unique 64-bit values used in frequency encoding.
+        std::vector<std::uint32_t, dfh::utils::aligned_allocator<std::uint32_t, 32>> rle_u32;    ///< Stores 32-byte aligned 32-bit flagged RLE values.
+        std::vector<std::uint8_t> processing_buffer; ///< General-purpose buffer for processing intermediate data.
 
         TickCompressionContextV1() = default;
 
         /// \brief Resets all buffers in the context.
-        /// Clears all data stored in the buffers, effectively resetting the state of the context.
-        /// Use this method to prepare the context for a new compression or decompression operation.
+        /// Prepares the context for a new compression/decompression operation.
         void reset() {
             deltas_u32.clear();
             deltas_u64.clear();
