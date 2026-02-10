@@ -3,7 +3,7 @@
 #define _DFH_COMPRESSION_UTILS_ZIG_ZAG_DELTA_HPP_INCLUDED
 
 /// \file
-/// \brief Delta + ZigZag codecs (scalar/SIMD) and runtime dispatchers.
+/// \brief Delta + ZigZag codecs (scalar/SIMD) and compile-time dispatched wrappers.
 ///
 /// \warning Do NOT include this header directly.
 /// Include only via \c include/DataFeedHub/compression/utils.hpp to guarantee that all required
@@ -349,6 +349,11 @@ namespace detail {
 //------------------------------------------------------------------------------
 
     template<class TickType>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_id_delta_scalar_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_id_delta_scalar_u32(
             const std::uint32_t* deltas,
             TickType* ticks,
@@ -374,6 +379,11 @@ namespace detail {
 
 #   if defined(__SSE2__)
     template<class TickType>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_id_delta_sse2_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_id_delta_sse2_u32(
             const std::uint32_t* deltas,
             TickType* ticks,
@@ -437,6 +447,11 @@ namespace detail {
 
 #   if defined(__AVX2__)
     template<class TickType>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_id_delta_avx2_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_id_delta_avx2_u32(
             const std::uint32_t* deltas,
             TickType* ticks,
@@ -573,6 +588,11 @@ namespace detail {
 //------------------------------------------------------------------------------
 
     template<class TickType>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_id_delta_scalar_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_id_delta_scalar_u64(
             const std::uint64_t* deltas,
             TickType* ticks,
@@ -594,6 +614,11 @@ namespace detail {
 
 #   if defined(__SSE2__)
     template<class TickType>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_id_delta_sse2_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_id_delta_sse2_u64(
             const std::uint64_t* deltas,
             TickType* ticks,
@@ -651,6 +676,11 @@ namespace detail {
 
 #   if defined(__AVX2__)
     template<class TickType>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_id_delta_avx2_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_id_delta_avx2_u64(
             const std::uint64_t* deltas,
             TickType* ticks,
@@ -749,8 +779,8 @@ namespace detail {
     /// scaled value and ZigZag-encode signed deltas into unsigned integers.
     ///
     /// Supported output formats:
-    /// - int32 deltas packed into uint32 (`encode_price_delta_zig_zag_int32` / `decode_price_delta_zig_zag_int32`)
-    /// - int64 deltas packed into uint64 (`encode_price_delta_zig_zag_int64` / `decode_price_delta_zig_zag_int64`)
+    /// - int32 deltas packed into uint32 (`encode_price_delta_zig_zag_u32` / `decode_price_delta_zig_zag_u32`)
+    /// - int64 deltas packed into uint64 (`encode_price_delta_zig_zag_u64` / `decode_price_delta_zig_zag_u64`)
     ///
     /// The price field is selected at compile time via a pointer-to-member: `double TickType::*`.
     ///
@@ -772,11 +802,11 @@ namespace detail {
     /// const std::int64_t init_last = std::llround(ticks[0].last * price_scale);
     ///
     /// std::vector<std::uint32_t> deltas(ticks.size());
-    /// dfh::compression::encode_price_delta_zig_zag_int32<MarketTick, &MarketTick::last>(
+    /// dfh::compression::encode_price_delta_zig_zag_u32<MarketTick, &MarketTick::last>(
     ///     ticks.data(), deltas.data(), ticks.size(), price_scale, init_last);
     ///
     /// std::vector<MarketTick> restored(ticks.size());
-    /// dfh::compression::decode_price_delta_zig_zag_int32<MarketTick, &MarketTick::last>(
+    /// dfh::compression::decode_price_delta_zig_zag_u32<MarketTick, &MarketTick::last>(
     ///     deltas.data(), restored.data(), restored.size(), price_scale, init_last);
     /// \endcode
     ///
@@ -883,6 +913,18 @@ namespace detail {
 
 } // namespace dfh::compression::detail
 
+    /// \brief Scalar price-delta + ZigZag encoder to 32-bit code units.
+    /// \tparam TickType Tick DTO type containing the price member.
+    /// \tparam PriceMember Pointer to member with source price (`double`).
+    /// \param ticks Pointer to input ticks.
+    /// \param output Pointer to output encoded values (`uint32_t`).
+    /// \param size Number of ticks.
+    /// \param price_scale Multiplier applied before rounding to integer price space.
+    /// \param initial_price Initial scaled reference price.
+    /// \return `true` if all rounded deltas fit in `int32_t`; otherwise `false`.
+    /// \pre `ticks`/`output` point to arrays of at least `size` elements.
+    /// \note Use `u64` variant when the scaled-delta domain may exceed `int32_t`.
+    /// \thread_safety Thread-safe (pure function over caller-provided buffers).
     template<class TickType, double TickType::* PriceMember>
     bool encode_price_delta_zig_zag_u32_scalar(
             const TickType* ticks,
@@ -1494,6 +1536,11 @@ namespace detail {
 //------------------------------------------------------------------------------
 
     template<class TickType, double TickType::* PriceMember>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_price_delta_zig_zag_u64_scalar.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_price_delta_zig_zag_u64_scalar(
             const std::uint64_t* deltas,
             TickType* ticks,
@@ -1512,6 +1559,11 @@ namespace detail {
     
 #   if defined(__SSE2__)
     template<class TickType, double TickType::* PriceMember>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_price_delta_zig_zag_u64_sse2.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_price_delta_zig_zag_u64_sse2(
             const std::uint64_t* deltas,
             TickType* ticks,
@@ -1563,6 +1615,11 @@ namespace detail {
 
 #   if defined(__AVX2__)
     template<class TickType, double TickType::* PriceMember>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_price_delta_zig_zag_u64_avx2.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_price_delta_zig_zag_u64_avx2(
             const std::uint64_t* deltas,
             TickType* ticks,
@@ -1620,6 +1677,11 @@ namespace detail {
 
 #   if defined(__AVX512F__)
     template<class TickType, double TickType::* PriceMember>
+    /// \brief Decodes an encoded delta stream into destination ticks (backend helper).
+    /// \note Function: \c decode_price_delta_zig_zag_u64_avx512.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+
     inline void decode_price_delta_zig_zag_u64_avx512(
             const std::uint64_t* deltas,
             TickType* ticks,
@@ -1714,7 +1776,16 @@ namespace detail {
 //
 //------------------------------------------------------------------------------
 
-    inline bool encode_delta_zig_zag_u32_scalar(
+    /// \name Delta+ZigZag integer codecs (32-bit paths)
+    /// \brief Backend-specific and dispatcher helpers for 32-bit encode/decode.
+    /// \note Backends: scalar, SSE2, AVX2, AVX512F (where available).
+    /// @{
+
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_scalar_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline bool encode_delta_zig_zag_scalar_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -1733,7 +1804,11 @@ namespace detail {
         return true;
     }
 
-    inline bool encode_delta_zig_zag_i32_scalar(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_scalar_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline bool encode_delta_zig_zag_scalar_i32(
             const std::int32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -1755,7 +1830,11 @@ namespace detail {
 
 
 #   if defined(__SSE2__)
-    inline bool encode_delta_zig_zag_u32_sse2(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_sse2_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline bool encode_delta_zig_zag_sse2_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -1803,7 +1882,11 @@ namespace detail {
         return true;
     }
 
-    inline bool encode_delta_zig_zag_i32_sse2(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_sse2_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline bool encode_delta_zig_zag_sse2_i32(
             const std::int32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -1852,7 +1935,11 @@ namespace detail {
 #   endif
 
 #   if defined(__AVX2__)
-    inline bool encode_delta_zig_zag_u32_avx2(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_avx2_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline bool encode_delta_zig_zag_avx2_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -1900,7 +1987,11 @@ namespace detail {
         return true;
     }
 
-    inline bool encode_delta_zig_zag_i32_avx2(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_avx2_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline bool encode_delta_zig_zag_avx2_i32(
             const std::int32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -1950,7 +2041,11 @@ namespace detail {
 #   endif
 
 #   if defined(__AVX512F__)
-    inline bool encode_delta_zig_zag_u32_avx512(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_avx512_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline bool encode_delta_zig_zag_avx512_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -1998,7 +2093,11 @@ namespace detail {
         return true;
     }
 
-    inline bool encode_delta_zig_zag_i32_avx512(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_avx512_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline bool encode_delta_zig_zag_avx512_i32(
             const std::int32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -2047,6 +2146,10 @@ namespace detail {
     }
 #   endif
 
+    /// \brief Encodes a delta+ZigZag sequence (dispatcher).
+    /// \note Function: \c encode_delta_zig_zag_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
     inline bool encode_delta_zig_zag_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
@@ -2054,15 +2157,19 @@ namespace detail {
             std::uint32_t initial_value
         ) noexcept {
 #       if defined(__AVX512F__)
-        return encode_delta_zig_zag_u32_avx512(input, output, size, initial_value);
+        return encode_delta_zig_zag_avx512_u32(input, output, size, initial_value);
 #       elif defined(__AVX2__)
-        return encode_delta_zig_zag_u32_avx2(input, output, size, initial_value);
+        return encode_delta_zig_zag_avx2_u32(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        return encode_delta_zig_zag_u32_sse2(input, output, size, initial_value);
+        return encode_delta_zig_zag_sse2_u32(input, output, size, initial_value);
 #       else
-        return encode_delta_zig_zag_u32_scalar(input, output, size, initial_value);
+        return encode_delta_zig_zag_scalar_u32(input, output, size, initial_value);
 #       endif
     }
+
+    /// \brief Encodes a delta+ZigZag sequence (dispatcher).
+    /// \note Function: \c encode_delta_zig_zag_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
 
     inline bool encode_delta_zig_zag_i32(
             const std::int32_t* input,
@@ -2071,13 +2178,13 @@ namespace detail {
             std::uint32_t initial_value
         ) noexcept {
 #       if defined(__AVX512F__)
-        return encode_delta_zig_zag_i32_avx512(input, output, size, initial_value);
+        return encode_delta_zig_zag_avx512_i32(input, output, size, initial_value);
 #       elif defined(__AVX2__)
-        return encode_delta_zig_zag_i32_avx2(input, output, size, initial_value);
+        return encode_delta_zig_zag_avx2_i32(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        return encode_delta_zig_zag_i32_sse2(input, output, size, initial_value);
+        return encode_delta_zig_zag_sse2_i32(input, output, size, initial_value);
 #       else
-        return encode_delta_zig_zag_i32_scalar(input, output, size, initial_value);
+        return encode_delta_zig_zag_scalar_i32(input, output, size, initial_value);
 #       endif
     }
     
@@ -2085,7 +2192,11 @@ namespace detail {
 //
 //------------------------------------------------------------------------------
 
-    inline void decode_delta_zig_zag_i32_scalar(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_scalar_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_scalar_i32(
             const std::uint32_t* input,
             std::int32_t* output,
             std::size_t size,
@@ -2100,7 +2211,11 @@ namespace detail {
         }
     }
 
-    inline void decode_delta_zig_zag_u32_scalar(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_scalar_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_scalar_u32(
         const std::uint32_t* input,
         std::uint32_t* output,
         std::size_t size,
@@ -2120,7 +2235,11 @@ namespace detail {
 
 #   if defined(__SSE2__)
 
-    inline void decode_delta_zig_zag_i32_sse2(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_sse2_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_sse2_i32(
             const std::uint32_t* input,
             std::int32_t* output,
             std::size_t size,
@@ -2168,7 +2287,11 @@ namespace detail {
         }
     }
 
-    inline void decode_delta_zig_zag_u32_sse2(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_sse2_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_sse2_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -2221,7 +2344,11 @@ namespace detail {
 
 #   if defined(__AVX2__)
     
-    inline void decode_delta_zig_zag_i32_avx2(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_avx2_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_avx2_i32(
             const std::uint32_t* input,
             std::int32_t* output,
             std::size_t size,
@@ -2275,7 +2402,11 @@ namespace detail {
         }
     }
 
-    inline void decode_delta_zig_zag_u32_avx2(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_avx2_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_avx2_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -2331,7 +2462,11 @@ namespace detail {
 #   endif
 
 #   if defined(__AVX512F__)
-    inline void decode_delta_zig_zag_i32_avx512(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_avx512_i32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_avx512_i32(
             const std::uint32_t* input,
             std::int32_t* output,
             std::size_t size,
@@ -2380,7 +2515,11 @@ namespace detail {
         }
     }
 
-    inline void decode_delta_zig_zag_u32_avx512(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_avx512_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_avx512_u32(
             const std::uint32_t* input,
             std::uint32_t* output,
             std::size_t size,
@@ -2445,15 +2584,19 @@ namespace detail {
             std::int32_t initial_value
         ) noexcept {
 #       if defined(__AVX512F__)
-        decode_delta_zig_zag_i32_avx512(input, output, size, initial_value);
+        decode_delta_zig_zag_avx512_i32(input, output, size, initial_value);
 #       elif defined(__AVX2__)
-        decode_delta_zig_zag_i32_avx2(input, output, size, initial_value);
+        decode_delta_zig_zag_avx2_i32(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        decode_delta_zig_zag_i32_sse2(input, output, size, initial_value);
+        decode_delta_zig_zag_sse2_i32(input, output, size, initial_value);
 #       else
-        decode_delta_zig_zag_i32_scalar(input, output, size, initial_value);
+        decode_delta_zig_zag_scalar_i32(input, output, size, initial_value);
 #       endif
     }
+
+    /// \brief Decodes a delta+ZigZag sequence (dispatcher).
+    /// \note Function: \c decode_delta_zig_zag_u32.
+    /// \thread_safety Thread-safe (no shared mutable state).
 
     inline void decode_delta_zig_zag_u32(
             const std::uint32_t* input,
@@ -2462,21 +2605,32 @@ namespace detail {
             std::uint32_t initial_value
         ) noexcept {
 #       if defined(__AVX512F__)
-        decode_delta_zig_zag_u32_avx512(input, output, size, initial_value);
+        decode_delta_zig_zag_avx512_u32(input, output, size, initial_value);
 #       elif defined(__AVX2__)
-        decode_delta_zig_zag_u32_avx2(input, output, size, initial_value);
+        decode_delta_zig_zag_avx2_u32(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        decode_delta_zig_zag_u32_sse2(input, output, size, initial_value);
+        decode_delta_zig_zag_sse2_u32(input, output, size, initial_value);
 #       else
-        decode_delta_zig_zag_u32_scalar(input, output, size, initial_value);
+        decode_delta_zig_zag_scalar_u32(input, output, size, initial_value);
 #       endif
     }
+
+    /// @}
 
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 
-    inline void encode_delta_zig_zag_i64_scalar(
+    /// \name Delta+ZigZag integer codecs (64-bit paths)
+    /// \brief Backend-specific and dispatcher helpers for 64-bit encode/decode.
+    /// \note Backends: scalar, SSE2, AVX2, AVX512F (where available).
+    /// @{
+
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_scalar_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void encode_delta_zig_zag_scalar_i64(
             const std::int64_t* input,
             std::uint64_t* output,
             std::size_t size,
@@ -2490,18 +2644,26 @@ namespace detail {
         }
     }
     
-    inline void encode_delta_zig_zag_u64_scalar(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_scalar_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void encode_delta_zig_zag_scalar_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::uint64_t initial_value
         ) noexcept {
-        encode_delta_zig_zag_i64_scalar(static_cast<const std::int64_t*>(input), output, size, initial_value);
+        encode_delta_zig_zag_scalar_i64(static_cast<const std::int64_t*>(input), output, size, initial_value);
     }
     
 #   if defined(__SSE2__)
 
-    inline void encode_delta_zig_zag_i64_sse2(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_sse2_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void encode_delta_zig_zag_sse2_i64(
             const std::int64_t* input,
             std::uint64_t* output,
             std::size_t size,
@@ -2547,20 +2709,28 @@ namespace detail {
         }
     }
     
-    inline void encode_delta_zig_zag_u64_sse2(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_sse2_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void encode_delta_zig_zag_sse2_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::uint64_t initial_value
         ) noexcept {
-        encode_delta_zig_zag_i64_sse2(static_cast<const std::int64_t*>(input), output, size, initial_value);
+        encode_delta_zig_zag_sse2_i64(static_cast<const std::int64_t*>(input), output, size, initial_value);
     }
 #   endif
 
 
 #   if defined(__AVX2__)
 
-    inline void encode_delta_zig_zag_i64_avx2(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_avx2_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void encode_delta_zig_zag_avx2_i64(
             const std::int64_t* input,
             std::uint64_t* output,
             std::size_t size,
@@ -2606,19 +2776,27 @@ namespace detail {
         }
     }
 
-    inline void encode_delta_zig_zag_u64_avx2(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_avx2_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void encode_delta_zig_zag_avx2_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::uint64_t initial_value
         ) noexcept {
-        encode_delta_zig_zag_i64_avx2(static_cast<const std::int64_t*>(input), output, size, initial_value);
+        encode_delta_zig_zag_avx2_i64(static_cast<const std::int64_t*>(input), output, size, initial_value);
     }
 #   endif
 
 #if defined(__AVX512F__)
     
-    inline void encode_delta_zig_zag_i64_avx512(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_avx512_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void encode_delta_zig_zag_avx512_i64(
             const std::int64_t* input,
             std::uint64_t* output,
             std::size_t size,
@@ -2671,37 +2849,50 @@ namespace detail {
         }
     }
     
-    inline void encode_delta_zig_zag_u64_avx512(
+    /// \brief Encodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c encode_delta_zig_zag_avx512_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void encode_delta_zig_zag_avx512_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::uint64_t initial_value
         ) noexcept {
-        encode_delta_zig_zag_i64_avx512(static_cast<const std::int64_t*>(input), output, size, initial_value);
+        encode_delta_zig_zag_avx512_i64(static_cast<const std::int64_t*>(input), output, size, initial_value);
     }
 #   endif
 
 
-    /// \brief Performs delta and Zig-Zag encoding in a single pass (64-bit).
-    /// \param input Pointer to the input array (int64_t).
+    /// \brief Performs delta and Zig-Zag encoding in a single pass (64-bit unsigned interface).
+    /// \param input Pointer to the input array (uint64_t).
     /// \param output Pointer to the output array (uint64_t).
     /// \param size Number of elements in the array.
     /// \param initial_value The reference value for delta computation (64-bit).
+    /// \pre Each mathematical delta `input[i] - prev` (with `prev = initial_value` for i=0,
+    ///      otherwise `prev = input[i-1]`) must fit in `int64_t`.
+    /// \note Implementation reuses signed-delta internals; values are represented as `uint64_t`,
+    ///       but the delta domain is effectively `int64_t`.
+    /// \thread_safety Thread-safe (pure function over caller-provided buffers).
     inline void encode_delta_zig_zag_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::uint64_t initial_value) noexcept {
 #       if defined(__AVX512F__)
-        encode_delta_zig_zag_u64_avx512(input, output, size, initial_value);
+        encode_delta_zig_zag_avx512_u64(input, output, size, initial_value);
 #       elif defined(__AVX2__)
-        encode_delta_zig_zag_u64_avx2(input, output, size, initial_value);
+        encode_delta_zig_zag_avx2_u64(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        encode_delta_zig_zag_u64_sse2(input, output, size, initial_value);
+        encode_delta_zig_zag_sse2_u64(input, output, size, initial_value);
 #       else
-        encode_delta_zig_zag_u64_scalar(input, output, size, initial_value);
+        encode_delta_zig_zag_scalar_u64(input, output, size, initial_value);
 #       endif
     }
+
+    /// \brief Encodes a delta+ZigZag sequence (dispatcher).
+    /// \note Function: \c encode_delta_zig_zag_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
 
     inline void encode_delta_zig_zag_i64(
         const std::int64_t* input,
@@ -2710,13 +2901,13 @@ namespace detail {
         std::int64_t initial_value
     ) noexcept {
 #       if defined(__AVX512F__)
-        encode_delta_zig_zag_i64_avx512(input, output, size, initial_value);
+        encode_delta_zig_zag_avx512_i64(input, output, size, initial_value);
 #       elif defined(__AVX2__)
-        encode_delta_zig_zag_i64_avx2(input, output, size, initial_value);
+        encode_delta_zig_zag_avx2_i64(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        encode_delta_zig_zag_i64_sse2(input, output, size, initial_value);
+        encode_delta_zig_zag_sse2_i64(input, output, size, initial_value);
 #       else
-        encode_delta_zig_zag_i64_scalar(input, output, size, initial_value);
+        encode_delta_zig_zag_scalar_i64(input, output, size, initial_value);
 #       endif
     }
     
@@ -2724,7 +2915,11 @@ namespace detail {
 //
 //------------------------------------------------------------------------------
 
-    inline void decode_delta_zig_zag_i64_scalar(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_scalar_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_scalar_i64(
             const std::uint64_t* input,
             std::int64_t* output,
             std::size_t size,
@@ -2732,7 +2927,6 @@ namespace detail {
         ) noexcept {
         if (size == 0) return;
         std::int64_t base = initial_value + zigzag_decode_u64(input[0]);
-        );
         output[0] = base;
         for (std::size_t i = 1; i < size; ++i) {
             base += zigzag_decode_u64(input[i]);
@@ -2740,17 +2934,25 @@ namespace detail {
         }
     }
     
-    inline void decode_delta_zig_zag_u64_scalar(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_scalar_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_scalar_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::int64_t initial_value
         ) noexcept {
-        decode_delta_zig_zag_i64_scalar(input, static_cast<const std::int64_t*>(output), size, initial_value);
+        decode_delta_zig_zag_scalar_i64(input, reinterpret_cast<std::int64_t*>(output), size, initial_value);
     }
 
 #   if defined(__SSE2__)
-    inline void decode_delta_zig_zag_i64_sse2(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_sse2_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_sse2_i64(
             const std::uint64_t* input,
             std::int64_t* output,
             std::size_t size,
@@ -2793,19 +2995,27 @@ namespace detail {
         }
     }
 
-    inline void decode_delta_zig_zag_u64_sse2(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_sse2_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_sse2_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::int64_t initial_value
         ) noexcept {
-        decode_delta_zig_zag_i64_sse2(input, static_cast<const std::int64_t*>(output), size, initial_value);
+        decode_delta_zig_zag_sse2_i64(input, reinterpret_cast<std::int64_t*>(output), size, initial_value);
     }
 #   endif
 
 #if defined(__AVX2__)
     
-    inline void decode_delta_zig_zag_i64_avx2(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_avx2_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_avx2_i64(
             const std::uint64_t* input,
             std::int64_t* output,
             std::size_t size,
@@ -2856,19 +3066,27 @@ namespace detail {
         }
     }
 
-    inline void decode_delta_zig_zag_u64_avx2(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_avx2_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_avx2_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::int64_t initial_value
         ) noexcept {
-        decode_delta_zig_zag_i64_avx2(input, static_cast<const std::int64_t*>(output), size, initial_value);
+        decode_delta_zig_zag_avx2_i64(input, reinterpret_cast<std::int64_t*>(output), size, initial_value);
     }
 #   endif
 
 #   if defined(__AVX512F__)
 
-    inline void decode_delta_zig_zag_i64_avx512(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_avx512_i64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_avx512_i64(
             const std::uint64_t* input,
             std::int64_t* output,
             std::size_t size,
@@ -2884,7 +3102,7 @@ namespace detail {
         for (; i < size; ++i) {
             if ((reinterpret_cast<std::uintptr_t>(input + i)  % align) == 0 &&
                 (reinterpret_cast<std::uintptr_t>(output + i) % align) == 0) break;
-            base = zigzag_decode_u64(input[i]);
+            base += zigzag_decode_u64(input[i]);
             output[i] = base;
         }
 
@@ -2916,13 +3134,17 @@ namespace detail {
         }
     }
     
-    inline void decode_delta_zig_zag_u64_avx512(
+    /// \brief Decodes a delta+ZigZag sequence (backend implementation).
+    /// \note Function: \c decode_delta_zig_zag_avx512_u64.
+    /// \thread_safety Thread-safe (no shared mutable state).
+
+    inline void decode_delta_zig_zag_avx512_u64(
             const std::uint64_t* input,
             std::uint64_t* output,
             std::size_t size,
             std::int64_t initial_value
         ) noexcept {
-        decode_delta_zig_zag_i64_avx512(input, static_cast<const std::int64_t*>(output), size, initial_value);
+        decode_delta_zig_zag_avx512_i64(input, reinterpret_cast<std::int64_t*>(output), size, initial_value);
     }
 
 #   endif
@@ -2939,15 +3161,25 @@ namespace detail {
             std::int64_t initial_value
         ) noexcept {
 #       if defined(__AVX512F__)
-        decode_delta_zig_zag_i64_avx512(input, output, size, initial_value);
+        decode_delta_zig_zag_avx512_i64(input, output, size, initial_value);
 #       elif defined(__AVX2__)
-        decode_delta_zig_zag_i64_avx2(input, output, size, initial_value);
+        decode_delta_zig_zag_avx2_i64(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        decode_delta_zig_zag_i64_sse2(input, output, size, initial_value);
+        decode_delta_zig_zag_sse2_i64(input, output, size, initial_value);
 #       else
-        decode_delta_zig_zag_i64_scalar(input, output, size, initial_value);
+        decode_delta_zig_zag_scalar_i64(input, output, size, initial_value);
 #       endif
     }
+
+    /// \brief Performs delta and Zig-Zag decoding in a single pass (64-bit unsigned interface).
+    /// \param input Pointer to the encoded array.
+    /// \param output Pointer to the decoded array (`uint64_t`).
+    /// \param size Number of elements in the array.
+    /// \param initial_value Initial reference value for reconstruction.
+    /// \pre Each decoded mathematical delta must be representable in `int64_t` in intermediate steps.
+    /// \note Implementation reuses signed-delta internals; representation is `uint64_t`,
+    ///       while accumulation semantics are signed-delta based.
+    /// \thread_safety Thread-safe (pure function over caller-provided buffers).
 
     inline void decode_delta_zig_zag_u64(
         const std::uint64_t* input,
@@ -2956,15 +3188,17 @@ namespace detail {
         std::uint64_t initial_value
     ) noexcept {
 #       if defined(__AVX512F__)
-        decode_delta_zig_zag_u64_avx512(input, output, size, initial_value);
+        decode_delta_zig_zag_avx512_u64(input, output, size, initial_value);
 #       elif defined(__AVX2__)
-        decode_delta_zig_zag_u64_avx2(input, output, size, initial_value);
+        decode_delta_zig_zag_avx2_u64(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        decode_delta_zig_zag_u64_sse2(input, output, size, initial_value);
+        decode_delta_zig_zag_sse2_u64(input, output, size, initial_value);
 #       else
-        decode_delta_zig_zag_u64_scalar(input, output, size, initial_value);
+        decode_delta_zig_zag_scalar_u64(input, output, size, initial_value);
 #       endif
     }
+
+    /// @}
 
 };
 
