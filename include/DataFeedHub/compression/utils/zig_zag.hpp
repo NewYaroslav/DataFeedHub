@@ -102,7 +102,22 @@ namespace dfh::compression {
         return static_cast<std::int64_t>((z >> 1) ^ (0ull - (z & 1ull)));
     }
 
+    // Compatibility aliases for older naming used by delta codecs.
+    inline std::uint32_t zigzag_encode_scalar_u32(std::int32_t value) noexcept { return zigzag_encode_u32(value); }
+    inline std::uint64_t zigzag_encode_scalar_u64(std::int64_t value) noexcept { return zigzag_encode_u64(value); }
+    inline std::int32_t zigzag_decode_scalar_u32(std::uint32_t z) noexcept { return zigzag_decode_u32(z); }
+    inline std::int64_t zigzag_decode_scalar_u64(std::uint64_t z) noexcept { return zigzag_decode_u64(z); }
+
+    inline std::uint32_t zigzag_encode_u32_scalar(std::int32_t value) noexcept { return zigzag_encode_u32(value); }
+    inline std::uint64_t zigzag_encode_u64_scalar(std::int64_t value) noexcept { return zigzag_encode_u64(value); }
+    inline std::int32_t zigzag_decode_u32_scalar(std::uint32_t z) noexcept { return zigzag_decode_u32(z); }
+    inline std::int64_t zigzag_decode_u64_scalar(std::uint64_t z) noexcept { return zigzag_decode_u64(z); }
+
 #   if defined(__SSE2__)
+    [[nodiscard]] inline __m128i zigzag_encode_u32_sse2(__m128i d) noexcept {
+        return _mm_xor_si128(_mm_slli_epi32(d, 1), _mm_srai_epi32(d, 31));
+    }
+
     /// \brief SSE2 ZigZag encoder for packed int64 deltas: int64 -> uint64 (per 64-bit lane).
     /// \details Uses (x << 1) ^ signmask, where signmask is 0 or -1 derived from the sign bit.
     [[nodiscard]] inline __m128i zigzag_encode_u64_sse2(__m128i d) noexcept {
@@ -140,9 +155,19 @@ namespace dfh::compression {
         const __m128i shr  = _mm_srli_epi64(z, 1);
         return _mm_xor_si128(shr, neg);
     }
+
+    // Compatibility aliases: zigzag_encode_<impl>_<type>
+    [[nodiscard]] inline __m128i zigzag_encode_sse2_u32(__m128i d) noexcept { return zigzag_encode_u32_sse2(d); }
+    [[nodiscard]] inline __m128i zigzag_encode_sse2_u64(__m128i d) noexcept { return zigzag_encode_u64_sse2(d); }
+    [[nodiscard]] inline __m128i zigzag_decode_sse2_u32(__m128i z) noexcept { return zigzag_decode_u32_sse2(z); }
+    [[nodiscard]] inline __m128i zigzag_decode_sse2_u64(__m128i z) noexcept { return zigzag_decode_u64_sse2(z); }
 #   endif
 
 #   if defined(__AVX2__)
+    [[nodiscard]] inline __m256i zigzag_encode_u32_avx2(__m256i d) noexcept {
+        return _mm256_xor_si256(_mm256_slli_epi32(d, 1), _mm256_srai_epi32(d, 31));
+    }
+
     /// \brief AVX2 ZigZag encoder for packed int64 deltas: int64 -> uint64 (per 64-bit lane).
     /// \details Uses (x << 1) ^ signmask, where signmask is 0 or -1 derived from the sign bit.
     [[nodiscard]] inline __m256i zigzag_encode_u64_avx2(__m256i d) noexcept {
@@ -180,9 +205,26 @@ namespace dfh::compression {
         const __m256i shr  = _mm256_srli_epi64(z, 1);
         return _mm256_xor_si256(shr, neg);
     }
+
+    // Compatibility aliases: zigzag_encode_<impl>_<type>
+    [[nodiscard]] inline __m256i zigzag_encode_avx2_u32(__m256i d) noexcept { return zigzag_encode_u32_avx2(d); }
+    [[nodiscard]] inline __m256i zigzag_encode_avx2_u64(__m256i d) noexcept { return zigzag_encode_u64_avx2(d); }
+    [[nodiscard]] inline __m256i zigzag_decode_avx2_u32(__m256i z) noexcept { return zigzag_decode_u32_avx2(z); }
+    [[nodiscard]] inline __m256i zigzag_decode_avx2_u64(__m256i z) noexcept { return zigzag_decode_u64_avx2(z); }
 #   endif
 
 #   if defined(__AVX512F__)
+    [[nodiscard]] inline __m512i zigzag_encode_u32_avx512(__m512i d) noexcept {
+        return _mm512_xor_si512(_mm512_slli_epi32(d, 1), _mm512_srai_epi32(d, 31));
+    }
+
+    [[nodiscard]] inline __m512i zigzag_decode_u32_avx512(__m512i z) noexcept {
+        __m512i shr1 = _mm512_srli_epi32(z, 1);
+        __m512i lsb  = _mm512_and_si512(z, _mm512_set1_epi32(1));
+        __m512i mask = _mm512_sub_epi32(_mm512_setzero_si512(), lsb);
+        return _mm512_xor_si512(shr1, mask);
+    }
+
     /// \brief AVX-512 ZigZag encoder for packed int64 deltas: int64 -> uint64 (per 64-bit lane).
     /// \details Uses (x << 1) ^ signmask, where signmask is all zeroes or all ones.
     /// \param d Packed signed 64-bit values.
@@ -205,6 +247,12 @@ namespace dfh::compression {
         __m512i mask = _mm512_sub_epi64(_mm512_setzero_si512(), lsb);
         return _mm512_xor_si512(shr1, mask);
     }
+
+    // Compatibility aliases: zigzag_encode_<impl>_<type>
+    [[nodiscard]] inline __m512i zigzag_encode_avx512_u32(__m512i d) noexcept { return zigzag_encode_u32_avx512(d); }
+    [[nodiscard]] inline __m512i zigzag_encode_avx512_u64(__m512i d) noexcept { return zigzag_encode_u64_avx512(d); }
+    [[nodiscard]] inline __m512i zigzag_decode_avx512_u32(__m512i z) noexcept { return zigzag_decode_u32_avx512(z); }
+    [[nodiscard]] inline __m512i zigzag_decode_avx512_u64(__m512i z) noexcept { return zigzag_decode_u64_avx512(z); }
 #   endif
 
 // -----------------------------------------------------------------------------

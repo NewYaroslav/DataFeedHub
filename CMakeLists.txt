@@ -149,6 +149,8 @@ if(DFH_BUILD_TESTS)
 
     dfh_add_test(test_tick_conversions_roundtrip SRC tests/test_tick_conversions_roundtrip.cpp)
     dfh_add_test(test_tick_json_roundtrip SRC tests/test_tick_json_roundtrip.cpp LIBS ${JSON_TARGET})
+    dfh_add_test(test_zig_zag SRC tests/test_zig_zag.cpp)
+    dfh_add_test(test_zig_zag_delta SRC tests/test_zig_zag_delta.cpp)
 
     dfh_add_test(test_header_compile_data_ticks
         SOURCES
