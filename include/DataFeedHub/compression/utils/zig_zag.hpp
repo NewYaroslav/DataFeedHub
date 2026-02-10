@@ -14,13 +14,14 @@
 /// This header contains:
 /// - Scalar ZigZag primitives for single values (32/64-bit),
 /// - Optional SIMD helpers for ZigZag operations on vector registers,
-/// - Scalar and AVX2 array encoders/decoders,
+/// - Scalar, AVX2, and AVX-512 array encoders/decoders,
 /// - Public dispatcher functions that select the best available implementation.
 ///
 /// Some functionality is provided in multiple implementations (scalar vs SIMD) to make it possible
 /// to run comparative benchmarks. In production code you should use the dispatcher functions
 /// (encode_zig_zag_* / decode_zig_zag_*): they automatically choose the fastest variant available
-/// on the current platform/compiler using feature macros (e.g., \c __AVX2__, \c __SSE2__).
+/// on the current platform/compiler using feature macros (e.g., \c __AVX2__, \c __AVX512F__,
+/// \c __SSE2__).
 ///
 /// \section dfh_zigzag_api API overview
 /// \subsection dfh_zigzag_api_scalar_primitives Scalar primitives (single value)
@@ -61,23 +62,13 @@
 /// - \c decode_zig_zag_u64(const std::uint64_t*, std::int64_t*, std::size_t)
 
 
-#include <cstddef>
-#include <cstdint>
-
-#if defined(__SSE2__)
-#   include <emmintrin.h>
-#endif
-
-#if defined(__AVX2__)
-#   include <immintrin.h>
-#endif
-
 namespace dfh::compression {
     
     /// \brief Encodes a 32-bit signed integer to ZigZag-encoded uint32.
     /// \details Inverse of zigzag_decode_u32().
     /// \param value Signed integer to encode.
     /// \return ZigZag-encoded unsigned integer.
+    /// \thread_safety Thread-safe.
     inline std::uint32_t zigzag_encode_u32(std::int32_t value) noexcept {
         const std::uint32_t u = static_cast<std::uint32_t>(value);
         return (u << 1) ^ static_cast<std::uint32_t>(-(u >> 31));
@@ -87,6 +78,7 @@ namespace dfh::compression {
     /// \details Inverse of zigzag_decode_u64().
     /// \param value Signed integer to encode.
     /// \return ZigZag-encoded unsigned integer.
+    /// \thread_safety Thread-safe.
     inline std::uint64_t zigzag_encode_u64(std::int64_t value) noexcept {
         const std::uint64_t u = static_cast<std::uint64_t>(value);
         return (u << 1) ^ static_cast<std::uint64_t>(-(u >> 63));
@@ -96,6 +88,7 @@ namespace dfh::compression {
     /// \details Inverse of zigzag_encode_u32().
     /// \param z ZigZag-encoded unsigned integer to decode.
     /// \return Decoded signed integer.
+    /// \thread_safety Thread-safe.
     inline std::int32_t zigzag_decode_u32(std::uint32_t z) noexcept {
         return static_cast<std::int32_t>((z >> 1) ^ (0u - (z & 1u)));
     }
@@ -104,6 +97,7 @@ namespace dfh::compression {
     /// \details Inverse of zigzag_encode_u64().
     /// \param z ZigZag-encoded unsigned integer to decode.
     /// \return Decoded signed integer.
+    /// \thread_safety Thread-safe.
     inline std::int64_t zigzag_decode_u64(std::uint64_t z) noexcept {
         return static_cast<std::int64_t>((z >> 1) ^ (0ull - (z & 1ull)));
     }
@@ -120,6 +114,12 @@ namespace dfh::compression {
         return _mm_xor_si128(shl1, signmask);
     }
 
+    /// \brief SSE2 ZigZag decoder for packed uint32 values: uint32 -> int32 (per 32-bit lane).
+    /// \details Uses (z >> 1) ^ -(z & 1) lane-wise.
+    /// \param z Packed ZigZag-encoded unsigned 32-bit values.
+    /// \return Packed decoded signed 32-bit values.
+    /// \pre Compiled with SSE2 support.
+    /// \thread_safety Thread-safe.
     [[nodiscard]] inline __m128i zigzag_decode_u32_sse2(__m128i z) noexcept {
         const __m128i shr1 = _mm_srli_epi32(z, 1);
         const __m128i lsb  = _mm_and_si128(z, _mm_set1_epi32(1));
@@ -127,6 +127,12 @@ namespace dfh::compression {
         return _mm_xor_si128(shr1, mask);
     }
     
+    /// \brief SSE2 ZigZag decoder for packed uint64 values: uint64 -> int64 (per 64-bit lane).
+    /// \details Uses (z >> 1) ^ -(z & 1) lane-wise.
+    /// \param z Packed ZigZag-encoded unsigned 64-bit values.
+    /// \return Packed decoded signed 64-bit values.
+    /// \pre Compiled with SSE2 support.
+    /// \thread_safety Thread-safe.
     [[nodiscard]] inline __m128i zigzag_decode_u64_sse2(__m128i z) noexcept {
         const __m128i one  = _mm_set1_epi64x(1);
         const __m128i sign = _mm_and_si128(z, one);                    // 0 or 1 in each lane
@@ -148,6 +154,12 @@ namespace dfh::compression {
         return _mm256_xor_si256(shl1, signmask);
     }
 
+    /// \brief AVX2 ZigZag decoder for packed uint32 values: uint32 -> int32 (per 32-bit lane).
+    /// \details Uses (z >> 1) ^ -(z & 1) lane-wise.
+    /// \param z Packed ZigZag-encoded unsigned 32-bit values.
+    /// \return Packed decoded signed 32-bit values.
+    /// \pre Compiled with AVX2 support.
+    /// \thread_safety Thread-safe.
     [[nodiscard]] inline __m256i zigzag_decode_u32_avx2(__m256i z) noexcept {
         const __m256i shr1 = _mm256_srli_epi32(z, 1);
         const __m256i lsb  = _mm256_and_si256(z, _mm256_set1_epi32(1));
@@ -155,6 +167,12 @@ namespace dfh::compression {
         return _mm256_xor_si256(shr1, mask);
     }
     
+    /// \brief AVX2 ZigZag decoder for packed uint64 values: uint64 -> int64 (per 64-bit lane).
+    /// \details Uses (z >> 1) ^ -(z & 1) lane-wise.
+    /// \param z Packed ZigZag-encoded unsigned 64-bit values.
+    /// \return Packed decoded signed 64-bit values.
+    /// \pre Compiled with AVX2 support.
+    /// \thread_safety Thread-safe.
     [[nodiscard]] inline __m256i zigzag_decode_u64_avx2(__m256i z) noexcept {
         const __m256i one  = _mm256_set1_epi64x(1);
         const __m256i sign = _mm256_and_si256(z, one);
@@ -165,10 +183,22 @@ namespace dfh::compression {
 #   endif
 
 #   if defined(__AVX512F__)
+    /// \brief AVX-512 ZigZag encoder for packed int64 deltas: int64 -> uint64 (per 64-bit lane).
+    /// \details Uses (x << 1) ^ signmask, where signmask is all zeroes or all ones.
+    /// \param d Packed signed 64-bit values.
+    /// \return Packed ZigZag-encoded unsigned 64-bit values.
+    /// \pre Compiled with AVX-512F support.
+    /// \thread_safety Thread-safe.
     [[nodiscard]] inline __m512i zigzag_encode_u64_avx512(__m512i d) noexcept {
         return _mm512_xor_si512(_mm512_slli_epi64(d, 1), _mm512_srai_epi64(d, 63));
     }
     
+    /// \brief AVX-512 ZigZag decoder for packed uint64 values: uint64 -> int64 (per 64-bit lane).
+    /// \details Uses (z >> 1) ^ -(z & 1) lane-wise.
+    /// \param z Packed ZigZag-encoded unsigned 64-bit values.
+    /// \return Packed decoded signed 64-bit values.
+    /// \pre Compiled with AVX-512F support.
+    /// \thread_safety Thread-safe.
     [[nodiscard]] inline __m512i zigzag_decode_u64_avx512(__m512i z) noexcept {
         __m512i shr1 = _mm512_srli_epi64(z, 1);
         __m512i lsb  = _mm512_and_si512(z, _mm512_set1_epi64(1));
@@ -182,6 +212,13 @@ namespace dfh::compression {
 // -----------------------------------------------------------------------------
 
     /// \brief Scalar encoder: int32 -> uint32.
+    /// \param input Pointer to signed input values.
+    /// \param output Pointer to output buffer for encoded values.
+    /// \param size Number of elements to process.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre output points to at least \p size elements.
+    /// \thread_safety Thread-safe.
     inline void encode_zig_zag_scalar_u32(
             const std::int32_t* input,
             std::uint32_t* output,
@@ -192,6 +229,13 @@ namespace dfh::compression {
     }
 
     /// \brief Scalar decoder: uint32 -> int32.
+    /// \param input Pointer to encoded input values.
+    /// \param output Pointer to output buffer for decoded values.
+    /// \param size Number of elements to process.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre output points to at least \p size elements.
+    /// \thread_safety Thread-safe.
     inline void decode_zig_zag_scalar_u32(
             const std::uint32_t* input,
             std::int32_t* output,
@@ -202,6 +246,13 @@ namespace dfh::compression {
     }
 
     /// \brief Scalar encoder: int64 -> uint64.
+    /// \param input Pointer to signed input values.
+    /// \param output Pointer to output buffer for encoded values.
+    /// \param size Number of elements to process.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre output points to at least \p size elements.
+    /// \thread_safety Thread-safe.
     inline void encode_zig_zag_scalar_u64(
             const std::int64_t* input,
             std::uint64_t* output,
@@ -212,6 +263,13 @@ namespace dfh::compression {
     }
 
     /// \brief Scalar decoder: uint64 -> int64.
+    /// \param input Pointer to encoded input values.
+    /// \param output Pointer to output buffer for decoded values.
+    /// \param size Number of elements to process.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre output points to at least \p size elements.
+    /// \thread_safety Thread-safe.
     inline void decode_zig_zag_scalar_u64(
             const std::uint64_t* input,
             std::int64_t* output,
@@ -227,7 +285,15 @@ namespace dfh::compression {
     // -------------------------------------------------------------------------
 
     /// \brief AVX2 encoder: int32 -> uint32, requires 32-byte alignment.
-    /// \warning input/output must be 32-byte aligned.
+    /// \param input Pointer to signed input values.
+    /// \param output Pointer to output buffer for encoded values.
+    /// \param size Number of elements to process.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre input and output are 32-byte aligned.
+    /// \pre output points to at least \p size elements.
+    /// \warning Using unaligned pointers is undefined behavior for this overload.
+    /// \thread_safety Thread-safe.
     inline void encode_zig_zag_avx2_u32(
             const std::int32_t* input,
             std::uint32_t* output,
@@ -253,7 +319,15 @@ namespace dfh::compression {
     }
 
     /// \brief AVX2 decoder: uint32 -> int32, requires 32-byte alignment.
-    /// \warning input/output must be 32-byte aligned.
+    /// \param input Pointer to encoded input values.
+    /// \param output Pointer to output buffer for decoded values.
+    /// \param size Number of elements to process.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre input and output are 32-byte aligned.
+    /// \pre output points to at least \p size elements.
+    /// \warning Using unaligned pointers is undefined behavior for this overload.
+    /// \thread_safety Thread-safe.
     inline void decode_zig_zag_avx2_u32(
             const std::uint32_t* input,
             std::int32_t* output,
@@ -279,7 +353,15 @@ namespace dfh::compression {
     }
 
     /// \brief AVX2 encoder: int64 -> uint64, requires 32-byte alignment.
-    /// \warning input/output must be 32-byte aligned.
+    /// \param input Pointer to signed input values.
+    /// \param output Pointer to output buffer for encoded values.
+    /// \param size Number of elements to process.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre input and output are 32-byte aligned.
+    /// \pre output points to at least \p size elements.
+    /// \warning Using unaligned pointers is undefined behavior for this overload.
+    /// \thread_safety Thread-safe.
     inline void encode_zig_zag_avx2_u64(
             const std::int64_t* input,
             std::uint64_t* output,
@@ -305,7 +387,15 @@ namespace dfh::compression {
     }
 
     /// \brief AVX2 decoder: uint64 -> int64, requires 32-byte alignment.
-    /// \warning input/output must be 32-byte aligned.
+    /// \param input Pointer to encoded input values.
+    /// \param output Pointer to output buffer for decoded values.
+    /// \param size Number of elements to process.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre input and output are 32-byte aligned.
+    /// \pre output points to at least \p size elements.
+    /// \warning Using unaligned pointers is undefined behavior for this overload.
+    /// \thread_safety Thread-safe.
     inline void decode_zig_zag_avx2_u64(
             const std::uint64_t* input,
             std::int64_t* output,
@@ -337,15 +427,33 @@ namespace dfh::compression {
     // -------------------------------------------------------------------------
 
     /// \brief Encodes int32 array to ZigZag uint32 array.
+    /// \details Dispatch order: AVX-512 (if available), then AVX2 (if available), otherwise scalar.
     /// \param input Pointer to the input array.
     /// \param output Pointer to the output array.
     /// \param size Number of elements in the array.
-    /// \note If AVX2 is enabled, input/output must be 32-byte aligned.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre output points to at least \p size elements.
+    /// \warning If AVX2 path is selected, input/output must be 32-byte aligned.
+    /// \thread_safety Thread-safe.
     inline void encode_zig_zag_u32(
             const std::int32_t* input,
             std::uint32_t* output,
             std::size_t size) noexcept {
-#       if defined(__AVX2__)
+#       if defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512DQ__)
+        constexpr std::size_t simd_width = 8;
+        const std::size_t aligned_size = size & ~std::size_t(simd_width - 1);
+        std::size_t i = 0;
+        for (; i < aligned_size; i += simd_width) {
+            const __m256i v = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
+            const __m256i zz = _mm512_castsi512_si256(
+                    zigzag_encode_u64_avx512(_mm512_castsi256_si512(v)));
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
+        }
+        for (; i < size; ++i) {
+            output[i] = zigzag_encode_u32(input[i]);
+        }
+#       elif defined(__AVX2__)
         encode_zig_zag_avx2_u32(input, output, size);
 #       else
         encode_zig_zag_scalar_u32(input, output, size);
@@ -353,15 +461,33 @@ namespace dfh::compression {
     }
 
     /// \brief Decodes ZigZag uint32 array to int32 array.
+    /// \details Dispatch order: AVX-512 (if available), then AVX2 (if available), otherwise scalar.
     /// \param input Pointer to the input array.
     /// \param output Pointer to the output array.
     /// \param size Number of elements in the array.
-    /// \note If AVX2 is enabled, input/output must be 32-byte aligned.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre output points to at least \p size elements.
+    /// \warning If AVX2 path is selected, input/output must be 32-byte aligned.
+    /// \thread_safety Thread-safe.
     inline void decode_zig_zag_u32(
             const std::uint32_t* input,
             std::int32_t* output,
             std::size_t size) noexcept {
-#       if defined(__AVX2__)
+#       if defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512DQ__)
+        constexpr std::size_t simd_width = 8;
+        const std::size_t aligned_size = size & ~std::size_t(simd_width - 1);
+        std::size_t i = 0;
+        for (; i < aligned_size; i += simd_width) {
+            const __m256i z = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
+            const __m256i v = _mm512_castsi512_si256(
+                    zigzag_decode_u64_avx512(_mm512_castsi256_si512(z)));
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), v);
+        }
+        for (; i < size; ++i) {
+            output[i] = zigzag_decode_u32(input[i]);
+        }
+#       elif defined(__AVX2__)
         decode_zig_zag_avx2_u32(input, output, size);
 #       else
         decode_zig_zag_scalar_u32(input, output, size);
@@ -369,15 +495,34 @@ namespace dfh::compression {
     }
 
     /// \brief Encodes int64 array to ZigZag uint64 array.
+    /// \details Dispatch order: AVX-512 (if available), then AVX2 (if available), otherwise scalar.
     /// \param input Pointer to the input array.
     /// \param output Pointer to the output array.
     /// \param size Number of elements in the array.
-    /// \note If AVX2 is enabled, input/output must be 32-byte aligned.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre output points to at least \p size elements.
+    /// \warning If AVX-512 or AVX2 path is selected, input/output must be 32-byte aligned.
+    /// \thread_safety Thread-safe.
     inline void encode_zig_zag_u64(
             const std::int64_t* input,
             std::uint64_t* output,
             std::size_t size) noexcept {
-#       if defined(__AVX2__)
+#       if defined(__AVX512F__) && defined(__AVX512DQ__)
+        constexpr std::size_t simd_width = 8;
+        const std::size_t aligned_size = size & ~std::size_t(simd_width - 1);
+
+        std::size_t i = 0;
+        for (; i < aligned_size; i += simd_width) {
+            const __m512i v = _mm512_load_si512(reinterpret_cast<const __m512i*>(input + i));
+            const __m512i zz = zigzag_encode_u64_avx512(v);
+            _mm512_store_si512(reinterpret_cast<__m512i*>(output + i), zz);
+        }
+
+        for (; i < size; ++i) {
+            output[i] = zigzag_encode_u64(input[i]);
+        }
+#       elif defined(__AVX2__)
         encode_zig_zag_avx2_u64(input, output, size);
 #       else
         encode_zig_zag_scalar_u64(input, output, size);
@@ -385,15 +530,34 @@ namespace dfh::compression {
     }
 
     /// \brief Decodes ZigZag uint64 array to int64 array.
+    /// \details Dispatch order: AVX-512 (if available), then AVX2 (if available), otherwise scalar.
     /// \param input Pointer to the input array.
     /// \param output Pointer to the output array.
     /// \param size Number of elements in the array.
-    /// \note If AVX2 is enabled, input/output must be 32-byte aligned.
+    /// \pre input != nullptr.
+    /// \pre output != nullptr.
+    /// \pre output points to at least \p size elements.
+    /// \warning If AVX-512 or AVX2 path is selected, input/output must be 32-byte aligned.
+    /// \thread_safety Thread-safe.
     inline void decode_zig_zag_u64(
             const std::uint64_t* input,
             std::int64_t* output,
             std::size_t size) noexcept {
-#       if defined(__AVX2__)
+#       if defined(__AVX512F__) && defined(__AVX512DQ__)
+        constexpr std::size_t simd_width = 8;
+        const std::size_t aligned_size = size & ~std::size_t(simd_width - 1);
+
+        std::size_t i = 0;
+        for (; i < aligned_size; i += simd_width) {
+            const __m512i z = _mm512_load_si512(reinterpret_cast<const __m512i*>(input + i));
+            const __m512i v = zigzag_decode_u64_avx512(z);
+            _mm512_store_si512(reinterpret_cast<__m512i*>(output + i), v);
+        }
+
+        for (; i < size; ++i) {
+            output[i] = zigzag_decode_u64(input[i]);
+        }
+#       elif defined(__AVX2__)
         decode_zig_zag_avx2_u64(input, output, size);
 #       else
         decode_zig_zag_scalar_u64(input, output, size);
