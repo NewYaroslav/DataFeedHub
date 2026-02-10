@@ -559,7 +559,7 @@ namespace detail {
             std::uint64_t* deltas,
             std::size_t size,
             std::int64_t initial_id) {
-        if (size == 0) return true;
+        if (size == 0) return;
         if (initial_id < 0 ||
             initial_id >= static_cast<std::int64_t>(TickType::max_trade_id())) {
             throw std::invalid_argument("encode_id_delta_u64: initial_id out of range");
@@ -980,8 +980,8 @@ namespace detail {
             p2 = ticks[i + 2].*PriceMember;
             p3 = ticks[i + 3].*PriceMember;
 
-            if (!llround_like_2pd_to_2i32_sse2(_mm_setr_pd(p0, p1), scale, s01)) break;
-            if (!llround_like_2pd_to_2i32_sse2(_mm_setr_pd(p2, p3), scale, s23)) break;
+            if (!detail::llround_like_2pd_to_2i32_sse2(_mm_setr_pd(p0, p1), scale, s01)) break;
+            if (!detail::llround_like_2pd_to_2i32_sse2(_mm_setr_pd(p2, p3), scale, s23)) break;
 
             // Combine into [s0 s1 s2 s3] in one __m128i
             cur = _mm_unpacklo_epi64(s01, s23);
@@ -993,9 +993,9 @@ namespace detail {
             d = _mm_sub_epi32(cur, prevv);
 
             // delta must fit in int32: detect overflow of subtraction
-            if (sub_overflow_i32_sse2(cur, prevv, d)) return false;
+            if (detail::sub_overflow_i32_sse2(cur, prevv, d)) return false;
 
-            zz = zigzag_i32_sse2(d);
+            zz = detail::zigzag_i32_sse2(d);
 
             // aligned store is ok if output aligned and i multiple of 4 (it is)
             _mm_store_si128(reinterpret_cast<__m128i*>(output + i), zz);
@@ -1051,8 +1051,8 @@ namespace detail {
             const double p7 = ticks[i + 7].*PriceMember;
 
             __m128i s0, s1;
-            if (!llround_like_4pd_to_4i32_avx2(_mm256_setr_pd(p0,p1,p2,p3), scale, s0)) break;
-            if (!llround_like_4pd_to_4i32_avx2(_mm256_setr_pd(p4,p5,p6,p7), scale, s1)) break;
+            if (!detail::llround_like_4pd_to_4i32_avx2(_mm256_setr_pd(p0,p1,p2,p3), scale, s0)) break;
+            if (!detail::llround_like_4pd_to_4i32_avx2(_mm256_setr_pd(p4,p5,p6,p7), scale, s1)) break;
 
             __m256i cur = _mm256_castsi128_si256(s0);
             cur = _mm256_inserti128_si256(cur, s1, 1); // [c0..c7] as i32
@@ -1063,9 +1063,9 @@ namespace detail {
             prevv = _mm256_blend_epi32(prevv, _mm256_set1_epi32(prev), 0x01); // lane0 = prev
 
             __m256i d = _mm256_sub_epi32(cur, prevv);
-            if (sub_overflow_i32_avx2(cur, prevv, d)) return false;
+            if (detail::sub_overflow_i32_avx2(cur, prevv, d)) return false;
 
-            __m256i zz = zigzag_i32_avx2(d);
+            __m256i zz = detail::zigzag_i32_avx2(d);
 
             // aligned store (output aligned-32 and i multiple of 8)
             _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
@@ -1116,7 +1116,7 @@ namespace detail {
             );
 
             __m256i cur;
-            if (!llround_like_8pd_to_8i32_avx512(x, price_scale, cur)) break;
+            if (!detail::llround_like_8pd_to_8i32_avx512(x, price_scale, cur)) break;
 
             // Same AVX2 i32 pipeline for delta+zigzag:
             const __m256i idx = _mm256_setr_epi32(0,0,1,2,3,4,5,6);
@@ -1124,9 +1124,9 @@ namespace detail {
             prevv = _mm256_blend_epi32(prevv, _mm256_set1_epi32(prev), 0x01);
 
             __m256i d = _mm256_sub_epi32(cur, prevv);
-            if (sub_overflow_i32_avx2(cur, prevv, d)) return false;
+            if (detail::sub_overflow_i32_avx2(cur, prevv, d)) return false;
 
-            __m256i zz = zigzag_i32_avx2(d);
+            __m256i zz = detail::zigzag_i32_avx2(d);
 
             _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), zz);
             prev = _mm256_extract_epi32(cur, 7);
@@ -2654,7 +2654,8 @@ namespace detail {
             std::size_t size,
             std::uint64_t initial_value
         ) noexcept {
-        encode_delta_zig_zag_scalar_i64(static_cast<const std::int64_t*>(input), output, size, initial_value);
+        encode_delta_zig_zag_scalar_i64(reinterpret_cast<const std::int64_t*>(input), output, size,
+                                        static_cast<std::int64_t>(initial_value));
     }
     
 #   if defined(__SSE2__)
@@ -2679,7 +2680,7 @@ namespace detail {
             const std::int64_t cur = input[i];
             const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
                                                                static_cast<std::uint64_t>(prev));
-            output[i] = zigzag_encode_u64_scalar(d);
+            output[i] = zigzag_encode_scalar_u64(d);
             prev = cur;
         }
 
@@ -2689,8 +2690,8 @@ namespace detail {
         for (; i < end; i += W) {
             __m128i cur = _mm_load_si128(reinterpret_cast<const __m128i*>(input + i));
 
-            __m128i prevv = _mm_shuffle_epi32(cur, _MM_SHUFFLE(1,0,3,2));
-            prevv = _mm_unpacklo_epi64(_mm_set1_epi64x(prev), prevv);
+            __m128i prevv = _mm_slli_si128(cur, 8);
+            prevv = _mm_or_si128(prevv, _mm_cvtsi64_si128(prev));
 
             __m128i d = _mm_sub_epi64(cur, prevv);
             __m128i zz = zigzag_encode_u64_sse2(d);
@@ -2704,7 +2705,7 @@ namespace detail {
             const std::int64_t cur = input[i];
             const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
                                                                static_cast<std::uint64_t>(prev));
-            output[i] = zigzag_encode_u64_scalar(d);
+            output[i] = zigzag_encode_scalar_u64(d);
             prev = cur;
         }
     }
@@ -2719,7 +2720,8 @@ namespace detail {
             std::size_t size,
             std::uint64_t initial_value
         ) noexcept {
-        encode_delta_zig_zag_sse2_i64(static_cast<const std::int64_t*>(input), output, size, initial_value);
+        encode_delta_zig_zag_sse2_i64(reinterpret_cast<const std::int64_t*>(input), output, size,
+                                      static_cast<std::int64_t>(initial_value));
     }
 #   endif
 
@@ -2746,7 +2748,7 @@ namespace detail {
             const std::int64_t cur = input[i];
             const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
                                                                static_cast<std::uint64_t>(prev));
-            output[i] = zigzag_encode_u64_scalar(d);
+            output[i] = zigzag_encode_scalar_u64(d);
             prev = cur;
         }
 
@@ -2771,7 +2773,7 @@ namespace detail {
             const std::int64_t cur = input[i];
             const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
                                                                static_cast<std::uint64_t>(prev));
-            output[i] = zigzag_encode_u64_scalar(d);
+            output[i] = zigzag_encode_scalar_u64(d);
             prev = cur;
         }
     }
@@ -2786,7 +2788,8 @@ namespace detail {
             std::size_t size,
             std::uint64_t initial_value
         ) noexcept {
-        encode_delta_zig_zag_avx2_i64(static_cast<const std::int64_t*>(input), output, size, initial_value);
+        encode_delta_zig_zag_avx2_i64(reinterpret_cast<const std::int64_t*>(input), output, size,
+                                      static_cast<std::int64_t>(initial_value));
     }
 #   endif
 
@@ -2812,7 +2815,7 @@ namespace detail {
             const std::int64_t cur = input[i];
             const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
                                                                static_cast<std::uint64_t>(prev));
-            output[i] = zigzag_encode_u64_scalar(d);
+            output[i] = zigzag_encode_scalar_u64(d);
             prev = cur;
         }
 
@@ -2844,7 +2847,7 @@ namespace detail {
             const std::int64_t cur = input[i];
             const std::int64_t d   = static_cast<std::int64_t>(static_cast<std::uint64_t>(cur) -
                                                                static_cast<std::uint64_t>(prev));
-            output[i] = zigzag_encode_u64_scalar(d);
+            output[i] = zigzag_encode_scalar_u64(d);
             prev = cur;
         }
     }
@@ -2859,7 +2862,8 @@ namespace detail {
             std::size_t size,
             std::uint64_t initial_value
         ) noexcept {
-        encode_delta_zig_zag_avx512_i64(static_cast<const std::int64_t*>(input), output, size, initial_value);
+        encode_delta_zig_zag_avx512_i64(reinterpret_cast<const std::int64_t*>(input), output, size,
+                                        static_cast<std::int64_t>(initial_value));
     }
 #   endif
 
@@ -3188,13 +3192,13 @@ namespace detail {
         std::uint64_t initial_value
     ) noexcept {
 #       if defined(__AVX512F__)
-        decode_delta_zig_zag_avx512_u64(input, output, size, initial_value);
+        decode_delta_zig_zag_avx512_u64(input, output, size, static_cast<std::int64_t>(initial_value));
 #       elif defined(__AVX2__)
-        decode_delta_zig_zag_avx2_u64(input, output, size, initial_value);
+        decode_delta_zig_zag_avx2_u64(input, output, size, static_cast<std::int64_t>(initial_value));
 #       elif defined(__SSE2__)
-        decode_delta_zig_zag_sse2_u64(input, output, size, initial_value);
+        decode_delta_zig_zag_sse2_u64(input, output, size, static_cast<std::int64_t>(initial_value));
 #       else
-        decode_delta_zig_zag_scalar_u64(input, output, size, initial_value);
+        decode_delta_zig_zag_scalar_u64(input, output, size, static_cast<std::int64_t>(initial_value));
 #       endif
     }
 
