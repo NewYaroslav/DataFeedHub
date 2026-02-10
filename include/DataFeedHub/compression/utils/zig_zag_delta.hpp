@@ -57,7 +57,16 @@
 /// - \c decode_delta_zig_zag_avx2_i32(...)
 /// - \c decode_delta_zig_zag_avx2_u64(...)
 /// - \c decode_delta_zig_zag_avx2_i64(...)
-
+///
+/// \subsection dfh_zigzag_delta_api_not_dispatched SIMD backends not used by dispatchers
+/// - \c encode_delta_zig_zag_sse2_u32(...)
+/// - \c encode_delta_zig_zag_sse2_i32(...)
+/// - \c decode_delta_zig_zag_sse2_u64(...)
+/// - \c decode_delta_zig_zag_sse2_i64(...)
+/// - \c encode_delta_zig_zag_avx512_u64(...)
+/// - \c encode_delta_zig_zag_avx512_i64(...)
+///
+/// These backends are kept for micro-benchmarking and ISA studies.
 
 #include "zig_zag.hpp"
 
@@ -1832,6 +1841,8 @@ namespace detail {
 #   if defined(__SSE2__)
     /// \brief Encodes a delta+ZigZag sequence (backend implementation).
     /// \note Function: \c encode_delta_zig_zag_sse2_u32.
+    /// \note Kept for benchmarks/manual comparison; release dispatcher uses scalar on SSE2-only targets
+    ///       because this backend does not provide stable speedup vs scalar.
     /// \thread_safety Thread-safe (no shared mutable state).
 
     inline bool encode_delta_zig_zag_sse2_u32(
@@ -1884,6 +1895,8 @@ namespace detail {
 
     /// \brief Encodes a delta+ZigZag sequence (backend implementation).
     /// \note Function: \c encode_delta_zig_zag_sse2_i32.
+    /// \note Kept for benchmarks/manual comparison; release dispatcher uses scalar on SSE2-only targets
+    ///       because this backend does not provide stable speedup vs scalar.
     /// \thread_safety Thread-safe (no shared mutable state).
 
     inline bool encode_delta_zig_zag_sse2_i32(
@@ -2161,7 +2174,7 @@ namespace detail {
 #       elif defined(__AVX2__)
         return encode_delta_zig_zag_avx2_u32(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        return encode_delta_zig_zag_sse2_u32(input, output, size, initial_value);
+        return encode_delta_zig_zag_scalar_u32(input, output, size, initial_value);
 #       else
         return encode_delta_zig_zag_scalar_u32(input, output, size, initial_value);
 #       endif
@@ -2182,7 +2195,7 @@ namespace detail {
 #       elif defined(__AVX2__)
         return encode_delta_zig_zag_avx2_i32(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        return encode_delta_zig_zag_sse2_i32(input, output, size, initial_value);
+        return encode_delta_zig_zag_scalar_i32(input, output, size, initial_value);
 #       else
         return encode_delta_zig_zag_scalar_i32(input, output, size, initial_value);
 #       endif
@@ -2490,28 +2503,41 @@ namespace detail {
         constexpr std::size_t W = 16;
         const std::size_t simd_end = i + ((size - i) / W) * W;
 
-        alignas(64) std::int32_t d[W];
-        alignas(64) std::int32_t prefix[W];
+        static const __m512i idx1 = _mm512_setr_epi32(0,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14);
+        static const __m512i idx2 = _mm512_setr_epi32(0,0,0,1,2,3,4,5,6,7,8,9,10,11,12,13);
+        static const __m512i idx4 = _mm512_setr_epi32(0,0,0,0,0,1,2,3,4,5,6,7,8,9,10,11);
+        static const __m512i idx8 = _mm512_setr_epi32(0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,7);
 
         for (; i < simd_end; i += W) {
             __m512i z = _mm512_load_si512(reinterpret_cast<const void*>(input + i));
-            __m512i dv = zigzag_decode_u32_avx512(z);
-            _mm512_store_si512(reinterpret_cast<void*>(d), dv);
+            __m512i t = zigzag_decode_u32_avx512(z);
 
-            std::int32_t run = 0;
-            for (std::size_t k = 0; k < W; ++k) {
-                run = static_cast<std::int32_t>(run + d[k]);
-                prefix[k] = run;
-            }
-            for (std::size_t k = 0; k < W; ++k) {
-                output[i + k] = static_cast<std::int32_t>(base + prefix[k]);
-            }
-            base = output[i + (W - 1)];
+            t = _mm512_mask_add_epi32(t, 0xFFFEu, t, _mm512_permutexvar_epi32(idx1, t));
+            t = _mm512_mask_add_epi32(t, 0xFFFCu, t, _mm512_permutexvar_epi32(idx2, t));
+            t = _mm512_mask_add_epi32(t, 0xFFF0u, t, _mm512_permutexvar_epi32(idx4, t));
+            t = _mm512_mask_add_epi32(t, 0xFF00u, t, _mm512_permutexvar_epi32(idx8, t));
+
+            __m512i outv = _mm512_add_epi32(t, _mm512_set1_epi32(base));
+            _mm512_store_si512(reinterpret_cast<void*>(output + i), outv);
+
+            const __m512i idx_last = _mm512_set1_epi32(15);
+            base = _mm_cvtsi128_si32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(idx_last, outv)));
         }
 
-        for (; i < size; ++i) {
-            base = static_cast<std::int32_t>(base + zigzag_decode_u32_scalar(input[i]));
-            output[i] = base;
+        if (i < size) {
+            const std::size_t rem = size - i;
+            const __mmask16 tail_mask = static_cast<__mmask16>((1u << rem) - 1u);
+
+            __m512i z = _mm512_maskz_loadu_epi32(tail_mask, input + i);
+            __m512i t = zigzag_decode_u32_avx512(z);
+
+            t = _mm512_mask_add_epi32(t, 0xFFFEu, t, _mm512_permutexvar_epi32(idx1, t));
+            t = _mm512_mask_add_epi32(t, 0xFFFCu, t, _mm512_permutexvar_epi32(idx2, t));
+            t = _mm512_mask_add_epi32(t, 0xFFF0u, t, _mm512_permutexvar_epi32(idx4, t));
+            t = _mm512_mask_add_epi32(t, 0xFF00u, t, _mm512_permutexvar_epi32(idx8, t));
+
+            __m512i outv = _mm512_add_epi32(t, _mm512_set1_epi32(base));
+            _mm512_mask_storeu_epi32(output + i, tail_mask, outv);
         }
     }
 
@@ -2545,30 +2571,44 @@ namespace detail {
         constexpr std::size_t W = 16;
         const std::size_t simd_end = i + ((size - i) / W) * W;
 
-        alignas(64) std::int32_t d[W];
-        alignas(64) std::int32_t prefix[W];
+        static const __m512i idx1 = _mm512_setr_epi32(0,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14);
+        static const __m512i idx2 = _mm512_setr_epi32(0,0,0,1,2,3,4,5,6,7,8,9,10,11,12,13);
+        static const __m512i idx4 = _mm512_setr_epi32(0,0,0,0,0,1,2,3,4,5,6,7,8,9,10,11);
+        static const __m512i idx8 = _mm512_setr_epi32(0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,7);
 
         for (; i < simd_end; i += W) {
             __m512i z = _mm512_load_si512(reinterpret_cast<const void*>(input + i));
-            __m512i dv = zigzag_decode_u32_avx512(z);
-            _mm512_store_si512(reinterpret_cast<void*>(d), dv);
+            __m512i t = zigzag_decode_u32_avx512(z);
 
-            std::int32_t run = 0;
-            for (std::size_t k = 0; k < W; ++k) {
-                run = static_cast<std::int32_t>(run + d[k]);
-                prefix[k] = run;
-            }
-            for (std::size_t k = 0; k < W; ++k) {
-                output[i + k] = static_cast<std::uint32_t>(static_cast<std::int32_t>(base + prefix[k]));
-            }
-            base = static_cast<std::int32_t>(output[i + (W - 1)]);
+            t = _mm512_mask_add_epi32(t, 0xFFFEu, t, _mm512_permutexvar_epi32(idx1, t));
+            t = _mm512_mask_add_epi32(t, 0xFFFCu, t, _mm512_permutexvar_epi32(idx2, t));
+            t = _mm512_mask_add_epi32(t, 0xFFF0u, t, _mm512_permutexvar_epi32(idx4, t));
+            t = _mm512_mask_add_epi32(t, 0xFF00u, t, _mm512_permutexvar_epi32(idx8, t));
+
+            __m512i outv = _mm512_add_epi32(t, _mm512_set1_epi32(base));
+            _mm512_store_si512(reinterpret_cast<void*>(output + i), outv);
+
+            const __m512i idx_last = _mm512_set1_epi32(15);
+            base = _mm_cvtsi128_si32(_mm512_castsi512_si128(_mm512_permutexvar_epi32(idx_last, outv)));
         }
 
-        for (; i < size; ++i) {
-            base = static_cast<std::int32_t>(base + zigzag_decode_u32_scalar(input[i]));
-            output[i] = static_cast<std::uint32_t>(base);
+        if (i < size) {
+            const std::size_t rem = size - i;
+            const __mmask16 tail_mask = static_cast<__mmask16>((1u << rem) - 1u);
+
+            __m512i z = _mm512_maskz_loadu_epi32(tail_mask, input + i);
+            __m512i t = zigzag_decode_u32_avx512(z);
+
+            t = _mm512_mask_add_epi32(t, 0xFFFEu, t, _mm512_permutexvar_epi32(idx1, t));
+            t = _mm512_mask_add_epi32(t, 0xFFFCu, t, _mm512_permutexvar_epi32(idx2, t));
+            t = _mm512_mask_add_epi32(t, 0xFFF0u, t, _mm512_permutexvar_epi32(idx4, t));
+            t = _mm512_mask_add_epi32(t, 0xFF00u, t, _mm512_permutexvar_epi32(idx8, t));
+
+            __m512i outv = _mm512_add_epi32(t, _mm512_set1_epi32(base));
+            _mm512_mask_storeu_epi32(output + i, tail_mask, outv);
         }
     }
+
 #   endif
 
 
@@ -2797,6 +2837,7 @@ namespace detail {
     
     /// \brief Encodes a delta+ZigZag sequence (backend implementation).
     /// \note Function: \c encode_delta_zig_zag_avx512_i64.
+    /// \note Not selected by dispatchers; kept for micro-benchmarks / ISA experiments.
     /// \thread_safety Thread-safe (no shared mutable state).
 
     inline void encode_delta_zig_zag_avx512_i64(
@@ -2854,6 +2895,7 @@ namespace detail {
     
     /// \brief Encodes a delta+ZigZag sequence (backend implementation).
     /// \note Function: \c encode_delta_zig_zag_avx512_u64.
+    /// \note Not selected by dispatchers; kept for micro-benchmarks / ISA experiments.
     /// \thread_safety Thread-safe (no shared mutable state).
 
     inline void encode_delta_zig_zag_avx512_u64(
@@ -2883,10 +2925,10 @@ namespace detail {
             std::uint64_t* output,
             std::size_t size,
             std::uint64_t initial_value) noexcept {
-#       if defined(__AVX512F__)
-        encode_delta_zig_zag_avx512_u64(input, output, size, initial_value);
-#       elif defined(__AVX2__)
+#       if defined(__AVX2__)
         encode_delta_zig_zag_avx2_u64(input, output, size, initial_value);
+#       elif defined(__AVX512F__)
+        encode_delta_zig_zag_scalar_u64(input, output, size, initial_value);
 #       elif defined(__SSE2__)
         encode_delta_zig_zag_sse2_u64(input, output, size, initial_value);
 #       else
@@ -2904,10 +2946,10 @@ namespace detail {
         std::size_t size,
         std::int64_t initial_value
     ) noexcept {
-#       if defined(__AVX512F__)
-        encode_delta_zig_zag_avx512_i64(input, output, size, initial_value);
-#       elif defined(__AVX2__)
+#       if defined(__AVX2__)
         encode_delta_zig_zag_avx2_i64(input, output, size, initial_value);
+#       elif defined(__AVX512F__)
+        encode_delta_zig_zag_scalar_i64(input, output, size, initial_value);
 #       elif defined(__SSE2__)
         encode_delta_zig_zag_sse2_i64(input, output, size, initial_value);
 #       else
@@ -2954,6 +2996,8 @@ namespace detail {
 #   if defined(__SSE2__)
     /// \brief Decodes a delta+ZigZag sequence (backend implementation).
     /// \note Function: \c decode_delta_zig_zag_sse2_i64.
+    /// \note Kept for benchmarks/manual comparison; release dispatcher uses scalar on SSE2-only targets
+    ///       because this backend does not provide stable speedup vs scalar.
     /// \thread_safety Thread-safe (no shared mutable state).
 
     inline void decode_delta_zig_zag_sse2_i64(
@@ -3001,6 +3045,8 @@ namespace detail {
 
     /// \brief Decodes a delta+ZigZag sequence (backend implementation).
     /// \note Function: \c decode_delta_zig_zag_sse2_u64.
+    /// \note Kept for benchmarks/manual comparison; release dispatcher uses scalar on SSE2-only targets
+    ///       because this backend does not provide stable speedup vs scalar.
     /// \thread_safety Thread-safe (no shared mutable state).
 
     inline void decode_delta_zig_zag_sse2_u64(
@@ -3041,26 +3087,42 @@ namespace detail {
 
         constexpr std::size_t W = 4;
         const std::size_t end = i + ((size - i) / W) * W;
+        const std::size_t end2 = i + ((end - i) / (W * 2)) * (W * 2);
+
+        for (; i < end2; i += (W * 2)) {
+            __m256i z0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
+            __m256i z1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i + W));
+
+            __m256i d0 = zigzag_decode_u64_avx2(z0);
+            __m256i d1 = zigzag_decode_u64_avx2(z1);
+
+            __m256i t0 = _mm256_add_epi64(d0, _mm256_slli_si256(d0, 8));
+            const __m256i low_last_broadcast0 = _mm256_permute4x64_epi64(t0, 0x55);
+            const __m256i add_hi0 = _mm256_blend_epi32(_mm256_setzero_si256(), low_last_broadcast0, 0xF0);
+            t0 = _mm256_add_epi64(t0, add_hi0);
+
+            const std::int64_t base_next = base + static_cast<std::int64_t>(_mm256_extract_epi64(t0, 3));
+            __m256i outv0 = _mm256_add_epi64(t0, _mm256_set1_epi64x(base));
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), outv0);
+
+            __m256i t1 = _mm256_add_epi64(d1, _mm256_slli_si256(d1, 8));
+            const __m256i low_last_broadcast1 = _mm256_permute4x64_epi64(t1, 0x55);
+            const __m256i add_hi1 = _mm256_blend_epi32(_mm256_setzero_si256(), low_last_broadcast1, 0xF0);
+            t1 = _mm256_add_epi64(t1, add_hi1);
+            __m256i outv1 = _mm256_add_epi64(t1, _mm256_set1_epi64x(base_next));
+            _mm256_store_si256(reinterpret_cast<__m256i*>(output + i + W), outv1);
+            base = base_next + static_cast<std::int64_t>(_mm256_extract_epi64(t1, 3));
+        }
 
         for (; i < end; i += W) {
             __m256i z = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
             __m256i d = zigzag_decode_u64_avx2(z);
-
-            // prefix inside each 128 lane (2 elems)
-            __m256i t = d;
-            t = _mm256_add_epi64(t, _mm256_slli_si256(t, 8)); // [a,a+b] | [c,c+d]
-
-            // carry low lane last into high lane
-            const __m128i low = _mm256_castsi256_si128(t);
-            const std::int64_t low_last = _mm_cvtsi128_si64(_mm_srli_si128(low, 8));
-            const __m256i add_hi = _mm256_setr_epi64x(0, 0, low_last, low_last);
-            t = _mm256_add_epi64(t, add_hi); // [a, a+b, a+b+c, a+b+c+d]
-
-            __m256i b = _mm256_set1_epi64x(base);
-            __m256i outv = _mm256_add_epi64(t, b);
-
+            __m256i t = _mm256_add_epi64(d, _mm256_slli_si256(d, 8));
+            const __m256i low_last_broadcast = _mm256_permute4x64_epi64(t, 0x55);
+            const __m256i add_hi = _mm256_blend_epi32(_mm256_setzero_si256(), low_last_broadcast, 0xF0);
+            t = _mm256_add_epi64(t, add_hi);
+            __m256i outv = _mm256_add_epi64(t, _mm256_set1_epi64x(base));
             _mm256_store_si256(reinterpret_cast<__m256i*>(output + i), outv);
-
             base = static_cast<std::int64_t>(_mm256_extract_epi64(outv, 3));
         }
 
@@ -3113,31 +3175,41 @@ namespace detail {
         constexpr std::size_t W = 8;
         const std::size_t end = i + ((size - i) / W) * W;
 
-        alignas(64) std::int64_t d[W];
-        alignas(64) std::int64_t prefix[W];
+        static const __m512i idx1 = _mm512_setr_epi64(0,0,1,2,3,4,5,6);
+        static const __m512i idx2 = _mm512_setr_epi64(0,0,0,1,2,3,4,5);
+        static const __m512i idx4 = _mm512_setr_epi64(0,0,0,0,0,1,2,3);
 
         for (; i < end; i += W) {
             __m512i z = _mm512_load_si512(reinterpret_cast<const void*>(input + i));
-            __m512i dv = zigzag_decode_u64_avx512(z);
-            _mm512_store_si512(reinterpret_cast<void*>(d), dv);
+            __m512i t = zigzag_decode_u64_avx512(z);
 
-            std::int64_t run = 0;
-            for (std::size_t k = 0; k < W; ++k) {
-                run += d[k];
-                prefix[k] = run;
-            }
-            for (std::size_t k = 0; k < W; ++k) {
-                output[i + k] = base + prefix[k];
-            }
-            base = output[i + (W - 1)];
+            t = _mm512_mask_add_epi64(t, 0xFEu, t, _mm512_permutexvar_epi64(idx1, t));
+            t = _mm512_mask_add_epi64(t, 0xFCu, t, _mm512_permutexvar_epi64(idx2, t));
+            t = _mm512_mask_add_epi64(t, 0xF0u, t, _mm512_permutexvar_epi64(idx4, t));
+
+            __m512i outv = _mm512_add_epi64(t, _mm512_set1_epi64(base));
+            _mm512_store_si512(reinterpret_cast<void*>(output + i), outv);
+
+            const __m512i idx_last = _mm512_set1_epi64(7);
+            base = _mm_cvtsi128_si64(_mm512_castsi512_si128(_mm512_permutexvar_epi64(idx_last, outv)));
         }
 
-        for (; i < size; ++i) {
-            base += zigzag_decode_u64(input[i]);
-            output[i] = base;
+        if (i < size) {
+            const std::size_t rem = size - i;
+            const __mmask8 tail_mask = static_cast<__mmask8>((1u << rem) - 1u);
+
+            __m512i z = _mm512_maskz_loadu_epi64(tail_mask, input + i);
+            __m512i t = zigzag_decode_u64_avx512(z);
+
+            t = _mm512_mask_add_epi64(t, 0xFEu, t, _mm512_permutexvar_epi64(idx1, t));
+            t = _mm512_mask_add_epi64(t, 0xFCu, t, _mm512_permutexvar_epi64(idx2, t));
+            t = _mm512_mask_add_epi64(t, 0xF0u, t, _mm512_permutexvar_epi64(idx4, t));
+
+            __m512i outv = _mm512_add_epi64(t, _mm512_set1_epi64(base));
+            _mm512_mask_storeu_epi64(output + i, tail_mask, outv);
         }
     }
-    
+
     /// \brief Decodes a delta+ZigZag sequence (backend implementation).
     /// \note Function: \c decode_delta_zig_zag_avx512_u64.
     /// \thread_safety Thread-safe (no shared mutable state).
@@ -3169,7 +3241,7 @@ namespace detail {
 #       elif defined(__AVX2__)
         decode_delta_zig_zag_avx2_i64(input, output, size, initial_value);
 #       elif defined(__SSE2__)
-        decode_delta_zig_zag_sse2_i64(input, output, size, initial_value);
+        decode_delta_zig_zag_scalar_i64(input, output, size, initial_value);
 #       else
         decode_delta_zig_zag_scalar_i64(input, output, size, initial_value);
 #       endif
@@ -3196,7 +3268,7 @@ namespace detail {
 #       elif defined(__AVX2__)
         decode_delta_zig_zag_avx2_u64(input, output, size, static_cast<std::int64_t>(initial_value));
 #       elif defined(__SSE2__)
-        decode_delta_zig_zag_sse2_u64(input, output, size, static_cast<std::int64_t>(initial_value));
+        decode_delta_zig_zag_scalar_u64(input, output, size, static_cast<std::int64_t>(initial_value));
 #       else
         decode_delta_zig_zag_scalar_u64(input, output, size, static_cast<std::int64_t>(initial_value));
 #       endif

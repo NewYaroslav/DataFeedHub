@@ -152,6 +152,10 @@ if(DFH_BUILD_TESTS)
     dfh_add_test(test_zig_zag SRC tests/test_zig_zag.cpp)
     dfh_add_test(test_zig_zag_delta SRC tests/test_zig_zag_delta.cpp)
 
+    add_executable(bench_zig_zag_delta tests/bench_zig_zag_delta.cpp)
+    target_link_libraries(bench_zig_zag_delta PRIVATE DataFeedHub)
+    target_compile_features(bench_zig_zag_delta PRIVATE cxx_std_17)
+
     dfh_add_test(test_header_compile_data_ticks
         SOURCES
             tests/header_compile/main.cpp
