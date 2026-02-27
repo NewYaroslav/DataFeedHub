@@ -1,4 +1,4 @@
-/// \file test_zig_zag_delta.cpp
+﻿/// \file test_zig_zag_delta.cpp
 /// \brief Time-series based tests for DataFeedHub/compression/utils/zig_zag_delta.hpp.
 
 #include <cassert>
@@ -7,7 +7,18 @@
 #include <limits>
 #include <vector>
 
+#ifdef __SSE2__
+#include <emmintrin.h>
+#endif
+
+#ifdef __SSE4_1__
+#include <smmintrin.h>
+#endif
+
+#ifdef defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX512DQ__)
 #include <immintrin.h>
+#endif
+
 #include "DataFeedHub/utils/aligned_allocator.hpp"
 #include "DataFeedHub/data/ticks/TradeTick.hpp"
 #include "DataFeedHub/compression/utils/zig_zag_delta.hpp"
@@ -79,7 +90,7 @@ void test_delta_sorted_roundtrip_u32_long() {
 }
 
 template <typename TickType>
-void test_time_id_and_price_delta_apis_impl(std::vector<TickType> ticks) {
+void test_time_delta_apis_impl(std::vector<TickType> ticks) {
     std::vector<TickType> decoded(ticks.size());
 
     AlignedVec64<std::uint32_t> time_delta(ticks.size());
@@ -88,39 +99,11 @@ void test_time_id_and_price_delta_apis_impl(std::vector<TickType> ticks) {
     for (std::size_t i = 0; i < ticks.size(); ++i) {
         assert(ticks[i].time_ms == decoded[i].time_ms);
     }
-
-    const auto initial_id = static_cast<std::int64_t>(ticks.front().trade_id() - 1);
-
-    AlignedVec64<std::uint32_t> id_delta32(ticks.size());
-    [[maybe_unused]] const bool ok32 =
-            dfh::compression::encode_id_delta_u32(ticks.data(), id_delta32.data(), ticks.size(), initial_id);
-    dfh::compression::decode_id_delta_u32(id_delta32.data(), decoded.data(), decoded.size(), initial_id);
-
-    AlignedVec64<std::uint64_t> id_delta64(ticks.size());
-    dfh::compression::encode_id_delta_u64(ticks.data(), id_delta64.data(), ticks.size(), initial_id);
-    dfh::compression::decode_id_delta_u64(id_delta64.data(), decoded.data(), decoded.size(), initial_id);
-
-    for (std::size_t i = 0; i < ticks.size(); ++i) {
-        assert(ticks[i].trade_id() == decoded[i].trade_id());
-    }
-
-    AlignedVec64<std::uint32_t> price_delta32(ticks.size());
-    [[maybe_unused]] const bool price32 =
-            dfh::compression::encode_price_delta_zig_zag_u32<TickType, &TickType::price>(
-                    ticks.data(), price_delta32.data(), ticks.size(), 100.0, 100000);
-    dfh::compression::decode_price_delta_zig_zag_u32<TickType, &TickType::price>(
-            price_delta32.data(), decoded.data(), decoded.size(), 100.0, 100000);
-
-    AlignedVec64<std::uint64_t> price_delta64(ticks.size());
-    dfh::compression::encode_price_delta_zig_zag_u64<TickType, &TickType::price>(
-            ticks.data(), price_delta64.data(), ticks.size(), 100000.0, 10000000000LL);
-    dfh::compression::decode_price_delta_zig_zag_u64<TickType, &TickType::price>(
-            price_delta64.data(), decoded.data(), decoded.size(), 100000.0, 10000000000LL);
 }
 
-void test_time_id_and_price_delta_apis() {
-    test_time_id_and_price_delta_apis_impl(make_series(4099));
-    test_time_id_and_price_delta_apis_impl(make_trade_series(4099));
+void test_time_delta_apis() {
+    test_time_delta_apis_impl(make_series(4099));
+    test_time_delta_apis_impl(make_trade_series(4099));
 }
 
 
@@ -150,147 +133,11 @@ void test_sorted_and_time_delta_edges_impl() {
     }
 }
 
-template <typename TickType>
-void test_id_delta_roundtrip_all_backends_impl(std::vector<TickType> ticks) {
-    std::vector<TickType> decoded(ticks.size());
-    const auto initial_id = static_cast<std::int64_t>(ticks.front().trade_id() - 1);
-
-    AlignedVec64<std::uint32_t> enc32(ticks.size());
-    const bool ok_u32 = dfh::compression::encode_id_delta_u32(ticks.data(), enc32.data(), ticks.size(), initial_id);
-    assert(ok_u32);
-    dfh::compression::decode_id_delta_u32(enc32.data(), decoded.data(), decoded.size(), initial_id);
-    for (std::size_t i = 0; i < ticks.size(); ++i) assert(ticks[i].trade_id() == decoded[i].trade_id());
-
-    dfh::compression::decode_id_delta_scalar_u32(enc32.data(), decoded.data(), decoded.size(), initial_id);
-    for (std::size_t i = 0; i < ticks.size(); ++i) assert(ticks[i].trade_id() == decoded[i].trade_id());
-
-#if defined(__SSE2__)
-    dfh::compression::decode_id_delta_sse2_u32(enc32.data(), decoded.data(), decoded.size(), initial_id);
-    for (std::size_t i = 0; i < ticks.size(); ++i) assert(ticks[i].trade_id() == decoded[i].trade_id());
-#endif
-#if defined(__AVX2__)
-    dfh::compression::decode_id_delta_avx2_u32(enc32.data(), decoded.data(), decoded.size(), initial_id);
-    for (std::size_t i = 0; i < ticks.size(); ++i) assert(ticks[i].trade_id() == decoded[i].trade_id());
-#endif
-
-    AlignedVec64<std::uint64_t> enc64(ticks.size());
-    dfh::compression::encode_id_delta_u64(ticks.data(), enc64.data(), ticks.size(), initial_id);
-    dfh::compression::decode_id_delta_u64(enc64.data(), decoded.data(), decoded.size(), initial_id);
-    for (std::size_t i = 0; i < ticks.size(); ++i) assert(ticks[i].trade_id() == decoded[i].trade_id());
-
-    dfh::compression::decode_id_delta_scalar_u64(enc64.data(), decoded.data(), decoded.size(), initial_id);
-    for (std::size_t i = 0; i < ticks.size(); ++i) assert(ticks[i].trade_id() == decoded[i].trade_id());
-
-#if defined(__SSE2__)
-    dfh::compression::decode_id_delta_sse2_u64(enc64.data(), decoded.data(), decoded.size(), initial_id);
-    for (std::size_t i = 0; i < ticks.size(); ++i) assert(ticks[i].trade_id() == decoded[i].trade_id());
-#endif
-#if defined(__AVX2__)
-    dfh::compression::decode_id_delta_avx2_u64(enc64.data(), decoded.data(), decoded.size(), initial_id);
-    for (std::size_t i = 0; i < ticks.size(); ++i) assert(ticks[i].trade_id() == decoded[i].trade_id());
-#endif
-}
-
-template <typename TickType>
-void test_price_delta_roundtrip_all_backends_impl(std::vector<TickType> ticks) {
-    std::vector<TickType> decoded(ticks.size());
-
-    for (std::size_t i = 0; i < ticks.size(); ++i) {
-        ticks[i].price = 1000.0 + static_cast<double>(i % 1000) * 0.01;
-    }
-
-    constexpr double scale32 = 100.0;
-    constexpr std::int64_t init32 = 100'000;
-    AlignedVec64<std::uint32_t> enc32(ticks.size());
-    const bool ok_disp32 = dfh::compression::encode_price_delta_zig_zag_u32<TickType, &TickType::price>(
-        ticks.data(), enc32.data(), ticks.size(), scale32, init32);
-    if (ok_disp32) {
-        dfh::compression::decode_price_delta_zig_zag_u32<TickType, &TickType::price>(
-            enc32.data(), decoded.data(), decoded.size(), scale32, init32);
-    }
-
-    const bool ok_scalar32 = dfh::compression::encode_price_delta_zig_zag_scalar_u32<TickType, &TickType::price>(
-        ticks.data(), enc32.data(), ticks.size(), scale32, init32);
-    if (ok_scalar32) {
-        dfh::compression::decode_price_delta_zig_zag_scalar_u32<TickType, &TickType::price>(
-            enc32.data(), decoded.data(), decoded.size(), scale32, init32);
-    }
-
-#if defined(__SSE2__)
-    const bool ok_sse232 = dfh::compression::encode_price_delta_zig_zag_sse2_u32<TickType, &TickType::price>(
-        ticks.data(), enc32.data(), ticks.size(), scale32, init32);
-    if (ok_sse232) {
-        dfh::compression::decode_price_delta_zig_zag_sse2_u32<TickType, &TickType::price>(
-            enc32.data(), decoded.data(), decoded.size(), scale32, init32);
-    }
-#endif
-#if defined(__AVX2__)
-    const bool ok_avx232 = dfh::compression::encode_price_delta_zig_zag_avx2_u32<TickType, &TickType::price>(
-        ticks.data(), enc32.data(), ticks.size(), scale32, init32);
-    if (ok_avx232) {
-        dfh::compression::decode_price_delta_zig_zag_avx2_u32<TickType, &TickType::price>(
-            enc32.data(), decoded.data(), decoded.size(), scale32, init32);
-    }
-#endif
-#if defined(__AVX512F__)
-    const bool ok_avx51232 = dfh::compression::encode_price_delta_zig_zag_avx512_u32<TickType, &TickType::price>(
-        ticks.data(), enc32.data(), ticks.size(), scale32, init32);
-    if (ok_avx51232) {
-        dfh::compression::decode_price_delta_zig_zag_avx512_u32<TickType, &TickType::price>(
-            enc32.data(), decoded.data(), decoded.size(), scale32, init32);
-    }
-#endif
-
-    constexpr double scale64 = 100'000.0;
-    constexpr std::int64_t init64 = 10'000'000'000LL;
-    AlignedVec64<std::uint64_t> enc64(ticks.size());
-    dfh::compression::encode_price_delta_zig_zag_u64<TickType, &TickType::price>(
-        ticks.data(), enc64.data(), ticks.size(), scale64, init64);
-    dfh::compression::decode_price_delta_zig_zag_u64<TickType, &TickType::price>(
-        enc64.data(), decoded.data(), decoded.size(), scale64, init64);
-
-    dfh::compression::encode_price_delta_zig_zag_scalar_u64<TickType, &TickType::price>(
-        ticks.data(), enc64.data(), ticks.size(), scale64, init64);
-    dfh::compression::decode_price_delta_zig_zag_scalar_u64<TickType, &TickType::price>(
-        enc64.data(), decoded.data(), decoded.size(), scale64, init64);
-
-#if defined(__AVX2__)
-    dfh::compression::encode_price_delta_zig_zag_avx2_u64<TickType, &TickType::price>(
-        ticks.data(), enc64.data(), ticks.size(), scale64, init64);
-    dfh::compression::decode_price_delta_zig_zag_avx2_u64<TickType, &TickType::price>(
-        enc64.data(), decoded.data(), decoded.size(), scale64, init64);
-#endif
-#if defined(__AVX512F__)
-    dfh::compression::encode_price_delta_zig_zag_avx512_u64<TickType, &TickType::price>(
-        ticks.data(), enc64.data(), ticks.size(), scale64, init64);
-    dfh::compression::decode_price_delta_zig_zag_avx512_u64<TickType, &TickType::price>(
-        enc64.data(), decoded.data(), decoded.size(), scale64, init64);
-#endif
-
-#if defined(__SSE2__)
-    dfh::compression::decode_price_delta_zig_zag_sse2_u64<TickType, &TickType::price>(
-        enc64.data(), decoded.data(), decoded.size(), scale64, init64);
-#endif
-#if defined(__AVX2__)
-    dfh::compression::decode_price_delta_zig_zag_avx2_u64<TickType, &TickType::price>(
-        enc64.data(), decoded.data(), decoded.size(), scale64, init64);
-#endif
-#if defined(__AVX512F__)
-    dfh::compression::decode_price_delta_zig_zag_avx512_u64<TickType, &TickType::price>(
-        enc64.data(), decoded.data(), decoded.size(), scale64, init64);
-#endif
-}
-
-void test_missing_apis_roundtrip_and_backends() {
-    auto ticks_synth = make_series(4099);
-    auto ticks_trade = make_trade_series(4099);
+void test_sorted_and_time_roundtrip_backends() {
     test_sorted_and_time_delta_edges_impl<SyntheticTick>();
     test_sorted_and_time_delta_edges_impl<dfh::TradeTick>();
-    test_id_delta_roundtrip_all_backends_impl(ticks_synth);
-    test_id_delta_roundtrip_all_backends_impl(ticks_trade);
-    test_price_delta_roundtrip_all_backends_impl(ticks_synth);
-    test_price_delta_roundtrip_all_backends_impl(ticks_trade);
 }
+
 void test_generic_delta_zigzag_dispatchers_long() {
     constexpr std::size_t n = 4097;
 
@@ -477,9 +324,9 @@ void test_explicit_avx512_backends() {
 
 int main() {
     test_delta_sorted_roundtrip_u32_long();
-    test_time_id_and_price_delta_apis();
+    test_time_delta_apis();
     test_generic_delta_zigzag_dispatchers_long();
-    test_missing_apis_roundtrip_and_backends();
+    test_sorted_and_time_roundtrip_backends();
 
     test_explicit_scalar_backends();
 #if defined(__SSE2__)
@@ -494,3 +341,4 @@ int main() {
 
     return 0;
 }
+

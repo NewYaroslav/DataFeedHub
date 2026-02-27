@@ -5,7 +5,18 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+
+#ifdef __SSE2__
+#include <emmintrin.h>
+#endif
+
+#ifdef __SSE4_1__
+#include <smmintrin.h>
+#endif
+
+#ifdef defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX512DQ__)
 #include <immintrin.h>
+#endif
 
 #include "DataFeedHub/utils/aligned_allocator.hpp"
 #include "DataFeedHub/compression/utils/zig_zag.hpp"

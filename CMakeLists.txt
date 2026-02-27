@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.20)
+﻿cmake_minimum_required(VERSION 3.20)
 project(DataFeedHub LANGUAGES C CXX VERSION 0.1.0)
 
 if (MSVC)
-    # Корректный __cplusplus для libmdbx
+    # РљРѕСЂСЂРµРєС‚РЅС‹Р№ __cplusplus РґР»СЏ libmdbx
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>")
 
-    # Запретить макросы min/max из <windows.h>, чтобы не ломать std::max и т.п.
+    # Р—Р°РїСЂРµС‚РёС‚СЊ РјР°РєСЂРѕСЃС‹ min/max РёР· <windows.h>, С‡С‚РѕР±С‹ РЅРµ Р»РѕРјР°С‚СЊ std::max Рё С‚.Рї.
     add_compile_definitions(NOMINMAX)
 endif()
 
@@ -46,10 +46,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # CMAKE_C_EXTENSIONS OFF 
-# * глобально влияет на все C-таргеты, включая зависимости (libmdbx, zlib-ng, minizip-ng и т.д.);
-# * может переключить сборку на “строгий” режим стандарта и внезапно сломать платформенные куски/расширения компилятора;
-# * основной проект - C++ interface-библиотека, своей C-компиляции практически нет -> пользы мало, риск есть.
-# поэтому лучше не добавлять
+# * РіР»РѕР±Р°Р»СЊРЅРѕ РІР»РёСЏРµС‚ РЅР° РІСЃРµ C-С‚Р°СЂРіРµС‚С‹, РІРєР»СЋС‡Р°СЏ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё (libmdbx, zlib-ng, minizip-ng Рё С‚.Рґ.);
+# * РјРѕР¶РµС‚ РїРµСЂРµРєР»СЋС‡РёС‚СЊ СЃР±РѕСЂРєСѓ РЅР° вЂњСЃС‚СЂРѕРіРёР№вЂќ СЂРµР¶РёРј СЃС‚Р°РЅРґР°СЂС‚Р° Рё РІРЅРµР·Р°РїРЅРѕ СЃР»РѕРјР°С‚СЊ РїР»Р°С‚С„РѕСЂРјРµРЅРЅС‹Рµ РєСѓСЃРєРё/СЂР°СЃС€РёСЂРµРЅРёСЏ РєРѕРјРїРёР»СЏС‚РѕСЂР°;
+# * РѕСЃРЅРѕРІРЅРѕР№ РїСЂРѕРµРєС‚ - C++ interface-Р±РёР±Р»РёРѕС‚РµРєР°, СЃРІРѕРµР№ C-РєРѕРјРїРёР»СЏС†РёРё РїСЂР°РєС‚РёС‡РµСЃРєРё РЅРµС‚ -> РїРѕР»СЊР·С‹ РјР°Р»Рѕ, СЂРёСЃРє РµСЃС‚СЊ.
+# РїРѕСЌС‚РѕРјСѓ Р»СѓС‡С€Рµ РЅРµ РґРѕР±Р°РІР»СЏС‚СЊ
 # - set(CMAKE_C_EXTENSIONS OFF)
 
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -151,6 +151,8 @@ if(DFH_BUILD_TESTS)
     dfh_add_test(test_tick_json_roundtrip SRC tests/test_tick_json_roundtrip.cpp LIBS ${JSON_TARGET})
     dfh_add_test(test_zig_zag SRC tests/test_zig_zag.cpp)
     dfh_add_test(test_zig_zag_delta SRC tests/test_zig_zag_delta.cpp)
+    dfh_add_test(test_zig_zag_delta_id SRC tests/test_zig_zag_delta_id.cpp)
+    dfh_add_test(test_zig_zag_delta_price SRC tests/test_zig_zag_delta_price.cpp)
 
     add_executable(bench_zig_zag_delta tests/bench_zig_zag_delta.cpp)
     target_link_libraries(bench_zig_zag_delta PRIVATE DataFeedHub)
@@ -194,3 +196,4 @@ if(DFH_BUILD_TESTS)
         endforeach()
     endif()
 endif()
+
