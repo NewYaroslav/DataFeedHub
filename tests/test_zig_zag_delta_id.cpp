@@ -15,7 +15,7 @@
 #include <smmintrin.h>
 #endif
 
-#ifdef defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX512DQ__)
+#if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX512DQ__)
 #include <immintrin.h>
 #endif
 
