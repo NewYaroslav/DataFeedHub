@@ -157,6 +157,12 @@ if(DFH_BUILD_TESTS)
     add_executable(bench_zig_zag_delta tests/bench_zig_zag_delta.cpp)
     target_link_libraries(bench_zig_zag_delta PRIVATE DataFeedHub)
     target_compile_features(bench_zig_zag_delta PRIVATE cxx_std_17)
+    add_executable(bench_zig_zag_delta_id tests/bench_zig_zag_delta_id.cpp)
+    target_link_libraries(bench_zig_zag_delta_id PRIVATE DataFeedHub)
+    target_compile_features(bench_zig_zag_delta_id PRIVATE cxx_std_17)
+    add_executable(bench_zig_zag_delta_price tests/bench_zig_zag_delta_price.cpp)
+    target_link_libraries(bench_zig_zag_delta_price PRIVATE DataFeedHub)
+    target_compile_features(bench_zig_zag_delta_price PRIVATE cxx_std_17)
 
     dfh_add_test(test_header_compile_data_ticks
         SOURCES

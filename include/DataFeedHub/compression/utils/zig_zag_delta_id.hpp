@@ -332,11 +332,11 @@ namespace detail {
         if (size == 0) return;
 #       if defined(__SSE2__) && defined(__AVX2__)
         // Runtime threshold policy for u32 ID decode:
-        // - TradeTick write-path tends to be writer-bound: prefer SSE2.
+        // - TradeTick path: current microbenchmarks favor AVX2.
         // - Plain DTOs may benefit from AVX2 only on very large blocks.
         constexpr std::size_t U32_AVX2_THRESHOLD = dispatcher_policy::ID_U32_AVX2_THRESHOLD;
         if constexpr (std::is_same_v<TickType, dfh::TradeTick>) {
-            decode_id_delta_sse2_u32(deltas, ticks, size, initial_id);
+            decode_id_delta_avx2_u32(deltas, ticks, size, initial_id);
         } else if (size >= U32_AVX2_THRESHOLD) {
             decode_id_delta_avx2_u32(deltas, ticks, size, initial_id);
         } else {
